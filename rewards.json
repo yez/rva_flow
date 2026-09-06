@@ -1,0 +1,1389 @@
+{
+  "version": 3,
+  "note": "Source of truth for FLOW's hack packs. Each entry is a problem, not an assignment: `problem` states the tension, `whoFeelsIt` names the person it lands on, `datasets`/`tools` are leads rather than requirements and `formats` are ways in that other people have taken, never a spec. `caution` is the one hard limit and it constrains claims, not form. `sources` is derived from `datasets` + `tools` by sync-rewards.py; edit those instead, then run it.",
+  "tracks": [
+    "Water",
+    "Essentials",
+    "Flow",
+    "Infrastructure",
+    "Neighborhoods"
+  ],
+  "efforts": {
+    "starter": "the smallest honest question inside a bigger problem",
+    "day": "a day's worth of digging",
+    "weekend": "the whole weekend, ideally a mixed team"
+  },
+  "roles": {
+    "data": "finding, cleaning and reading data",
+    "code": "writing software",
+    "design": "interface, service and document design",
+    "writing": "plain-language writing",
+    "making": "physical making, drawing, photography",
+    "hardware": "sensors and microcontrollers",
+    "facilitation": "running a table, interviewing, playtesting"
+  },
+  "datasets": {
+    "usgs-nwis": {
+      "name": "USGS water data",
+      "readiness": "ready",
+      "notes": "waterservices.usgs.gov, no key, CSV or JSON."
+    },
+    "epa-wqp": {
+      "name": "EPA Water Quality Portal",
+      "readiness": "ready",
+      "notes": "Large and messy; pick station and characteristic before the event."
+    },
+    "va-deq": {
+      "name": "Virginia DEQ monitoring",
+      "readiness": "verify",
+      "notes": "VERIFY: retrievable without portal archaeology? Otherwise drop from packs."
+    },
+    "planrva-flood": {
+      "name": "PlanRVA Flood Risk Mapper",
+      "readiness": "verify",
+      "notes": "VERIFY: viewer only, or are layers downloadable? Prompts assume source material, not analysis."
+    },
+    "planrva-watershed": {
+      "name": "PlanRVA watershed mapping",
+      "readiness": "verify",
+      "notes": "VERIFY: viewer only, or downloadable?"
+    },
+    "planrva-heat": {
+      "name": "PlanRVA extreme heat resources",
+      "readiness": "verify",
+      "notes": "VERIFY: viewer only, or downloadable?"
+    },
+    "planrva-lrtp": {
+      "name": "PlanRVA long-range transportation work",
+      "readiness": "ready",
+      "notes": "Published plan documents; a redesign brief, not a dataset."
+    },
+    "rva-ccr": {
+      "name": "Richmond annual water-quality reports",
+      "readiness": "ready",
+      "notes": "Annual consumer confidence report, PDF."
+    },
+    "rva-parcels": {
+      "name": "Richmond assessor parcel dataset",
+      "readiness": "prep",
+      "notes": "Large and messy; clip to one area before the event."
+    },
+    "rva-gis": {
+      "name": "Richmond GIS open data",
+      "readiness": "ready",
+      "notes": "Boundaries, facilities, place data."
+    },
+    "rva311": {
+      "name": "RVA311 service requests",
+      "readiness": "verify",
+      "notes": "VERIFY: does 311 publish request data? If not, the synthetic set covers it."
+    },
+    "rva-speed": {
+      "name": "Richmond public speed information",
+      "readiness": "verify",
+      "notes": "UNRESOLVED: no confirmed dataset. Only referenced by a retired prompt."
+    },
+    "grtc-gtfs": {
+      "name": "GRTC GTFS",
+      "readiness": "ready",
+      "notes": "Static GTFS zip; parsing wants a coder."
+    },
+    "census-acs": {
+      "name": "Census data",
+      "readiness": "ready",
+      "notes": "ACS 5-year; CSV from data.census.gov needs no key, the API needs a free one."
+    },
+    "usda-food-access": {
+      "name": "USDA food access data",
+      "readiness": "ready",
+      "notes": "Food Access Research Atlas and retailer lists."
+    },
+    "eia-elec": {
+      "name": "EIA open electricity data",
+      "readiness": "ready",
+      "notes": "Free API key, issued instantly."
+    },
+    "fcc-bdc": {
+      "name": "FCC National Broadband Map",
+      "readiness": "prep",
+      "notes": "Bulk availability files are far too large for a weekend; clip a Richmond-area extract in advance."
+    },
+    "syn-work-orders": {
+      "name": "Synthetic work orders",
+      "readiness": "prep",
+      "provided": false,
+      "notes": "ORGANIZER MUST AUTHOR before the event."
+    },
+    "syn-service-requests": {
+      "name": "Synthetic service requests",
+      "readiness": "prep",
+      "provided": false,
+      "notes": "ORGANIZER MUST AUTHOR before the event."
+    },
+    "syn-outages": {
+      "name": "Synthetic outage scenarios",
+      "readiness": "prep",
+      "provided": false,
+      "notes": "ORGANIZER MUST AUTHOR before the event."
+    },
+    "syn-facilities": {
+      "name": "Synthetic facility locations",
+      "readiness": "prep",
+      "provided": false,
+      "notes": "ORGANIZER MUST AUTHOR before the event."
+    },
+    "syn-usage-rates": {
+      "name": "Synthetic household usage and rates",
+      "readiness": "prep",
+      "provided": false,
+      "notes": "ORGANIZER MUST AUTHOR before the event."
+    },
+    "syn-asset-inventory": {
+      "name": "Synthetic asset inventory",
+      "readiness": "prep",
+      "provided": false,
+      "notes": "ORGANIZER MUST AUTHOR before the event; sidewalks, pipes, lights or road segments."
+    },
+    "syn-flows": {
+      "name": "Synthetic flow data",
+      "readiness": "prep",
+      "provided": false,
+      "notes": "ORGANIZER MUST AUTHOR before the event."
+    }
+  },
+  "tools": {
+    "flourish": {
+      "name": "Flourish"
+    },
+    "microbit": {
+      "name": "micro:bit MakeCode examples"
+    },
+    "nist-privacy": {
+      "name": "NIST privacy risk framework"
+    }
+  },
+  "prompts": [
+    {
+      "id": "starter-one-gage-one-caption",
+      "track": "Water",
+      "status": "live",
+      "effort": "starter",
+      "title": "One Gage, One Question",
+      "problem": "A single USGS gage on the James publishes a reading every fifteen minutes. Working out what that one number can honestly support, and what it cannot, is the smallest version of every water question in this pack.",
+      "whoFeelsIt": "Anyone who has seen a river reading and had no idea whether it was high.",
+      "needs": [
+        "data",
+        "writing"
+      ],
+      "datasets": [
+        "usgs-nwis"
+      ],
+      "tools": [],
+      "sources": [
+        "USGS water data"
+      ],
+      "formats": [
+        "chart/story"
+      ],
+      "caution": "Two sentences with a stated limit beats five paragraphs of inference.",
+      "pairsWith": [
+        "water-river-pulse"
+      ]
+    },
+    {
+      "id": "art-river-year-object",
+      "track": "Water",
+      "status": "live",
+      "effort": "day",
+      "title": "A Year Of The River You Can Hold",
+      "problem": "A year of river data is thousands of readings that nobody feels. A chart is read in two seconds and forgotten. The same year made physical - printed, folded, woven, sounded, cast - reaches people who will never open a dashboard.",
+      "whoFeelsIt": "A passer-by at a table who would never click a chart.",
+      "needs": [
+        "making",
+        "data"
+      ],
+      "datasets": [
+        "usgs-nwis"
+      ],
+      "tools": [],
+      "sources": [
+        "USGS water data"
+      ],
+      "formats": [
+        "physical prototype",
+        "installation",
+        "chart/story"
+      ],
+      "caution": "Say which readings were smoothed or dropped to make the object work.",
+      "pairsWith": [
+        "water-river-pulse"
+      ]
+    },
+    {
+      "id": "cross-flood-and-word",
+      "track": "Water",
+      "alsoTracks": [
+        "Neighborhoods"
+      ],
+      "status": "live",
+      "effort": "weekend",
+      "title": "The Block That Floods And The Block That Hears About It",
+      "problem": "Flood risk and flood information travel through different systems and do not overlap cleanly. Water goes where the terrain sends it. Warnings go where mailing lists, homeownership, English fluency and smartphones send them.",
+      "whoFeelsIt": "A household in the water's path and outside the warning's.",
+      "needs": [
+        "data",
+        "design",
+        "writing"
+      ],
+      "datasets": [
+        "planrva-flood",
+        "census-acs"
+      ],
+      "tools": [],
+      "sources": [
+        "PlanRVA Flood Risk Mapper",
+        "Census data"
+      ],
+      "formats": [
+        "map",
+        "chart/story",
+        "Figma prototype"
+      ],
+      "caution": "Flood-risk information needs careful explanation and should point residents to official guidance; do not infer any individual household's risk.",
+      "pairsWith": [
+        "water-flood-renter",
+        "neighborhood-heat"
+      ]
+    },
+    {
+      "id": "water-bill-teaches",
+      "track": "Water",
+      "status": "live",
+      "effort": "weekend",
+      "title": "The Bill That Explains Nothing",
+      "problem": "A water bill arrives as a number. It does not say which habits moved it, which part is fixed no matter what you do, or what a neighbour in the same kind of house pays. It is the most regular contact most people have with the water system and it teaches them nothing.",
+      "whoFeelsIt": "A household whose bill doubled and who cannot tell whether that is a leak, a rate change, or a hot August.",
+      "needs": [
+        "data",
+        "design",
+        "code"
+      ],
+      "datasets": [
+        "syn-usage-rates"
+      ],
+      "tools": [],
+      "sources": [
+        "Synthetic household usage and rates"
+      ],
+      "formats": [
+        "spreadsheet model",
+        "Figma prototype",
+        "code"
+      ],
+      "caution": "Show which rates and household assumptions are simplified."
+    },
+    {
+      "id": "water-flood-renter",
+      "track": "Water",
+      "status": "live",
+      "effort": "weekend",
+      "title": "I Rent Here. Am I In Trouble?",
+      "problem": "Flood information is organised around property - owners, parcels, insurance, elevation certificates. Renters are close to half of Richmond's households and inherit the risk without any of the paperwork that would warn them about it.",
+      "whoFeelsIt": "A tenant signing a twelve-month lease on a ground-floor apartment.",
+      "needs": [
+        "design",
+        "writing"
+      ],
+      "datasets": [
+        "planrva-flood"
+      ],
+      "tools": [],
+      "sources": [
+        "PlanRVA Flood Risk Mapper"
+      ],
+      "formats": [
+        "Figma prototype",
+        "map",
+        "chart/story"
+      ],
+      "caution": "Flood-risk information needs careful explanation and should point residents to official guidance.",
+      "pairsWith": [
+        "cross-flood-and-word"
+      ]
+    },
+    {
+      "id": "water-rain-go",
+      "track": "Water",
+      "status": "live",
+      "effort": "day",
+      "title": "Where Does My Rain Go?",
+      "problem": "Rain that falls on one block ends up somewhere, and almost nobody who lives there could tell you where. Storm drains cross boundaries that appear on no map a resident is ever shown.",
+      "whoFeelsIt": "A household that floods and does not know which agency to call.",
+      "needs": [
+        "design",
+        "writing",
+        "data"
+      ],
+      "datasets": [
+        "planrva-watershed"
+      ],
+      "tools": [],
+      "sources": [
+        "PlanRVA watershed mapping"
+      ],
+      "formats": [
+        "map",
+        "chart/story",
+        "Figma prototype",
+        "code"
+      ],
+      "caution": "Watershed maps explain likely drainage relationships; they do not replace site-specific engineering review."
+    },
+    {
+      "id": "water-report-readable",
+      "track": "Water",
+      "status": "live",
+      "effort": "day",
+      "title": "The Report Nobody Can Read",
+      "problem": "Every water utility has to publish an annual quality report, and Richmond's satisfies the law while failing at the job: MCL, turbidity, parts per million, ninety-fifth percentile. It is a compliance document wearing the costume of public information.",
+      "whoFeelsIt": "A parent who wants to know whether the tap is fine for making formula.",
+      "needs": [
+        "design",
+        "writing"
+      ],
+      "datasets": [
+        "rva-ccr"
+      ],
+      "tools": [],
+      "sources": [
+        "Richmond annual water-quality reports"
+      ],
+      "formats": [
+        "Figma prototype",
+        "chart/story",
+        "spreadsheet model"
+      ],
+      "caution": "This is communication design, not an independent declaration of drinking-water safety.",
+      "pairsWith": [
+        "starter-plain-language",
+        "access-civic-form-audit"
+      ]
+    },
+    {
+      "id": "water-river-pulse",
+      "track": "Water",
+      "status": "live",
+      "effort": "day",
+      "title": "The River Has a Pulse",
+      "problem": "The James is measured constantly - flow, temperature, turbidity, dissolved oxygen - and almost none of that reaches the people who swim in it, fish it, or live above it. The numbers are public. The meaning does not travel.",
+      "whoFeelsIt": "Someone deciding whether to put a kayak in the water this weekend.",
+      "needs": [
+        "data",
+        "writing"
+      ],
+      "datasets": [
+        "usgs-nwis",
+        "epa-wqp",
+        "va-deq"
+      ],
+      "tools": [],
+      "sources": [
+        "USGS water data",
+        "EPA Water Quality Portal",
+        "Virginia DEQ monitoring"
+      ],
+      "formats": [
+        "chart/story",
+        "map",
+        "spreadsheet model",
+        "code"
+      ],
+      "caution": "Do not infer causes or safety claims that the selected indicator cannot support.",
+      "pairsWith": [
+        "art-river-year-object",
+        "starter-one-gage-one-caption"
+      ]
+    },
+    {
+      "id": "starter-plain-language",
+      "track": "Essentials",
+      "status": "live",
+      "effort": "starter",
+      "title": "One Paragraph, Nobody Understands",
+      "problem": "Somewhere in a civic notice, bill or form is a single paragraph that decides whether a person acts or gives up. Finding one and working out what it actually asks of somebody is the smallest version of every communication problem in this pack.",
+      "whoFeelsIt": "Anyone who has read an official letter three times and still not known what to do.",
+      "needs": [
+        "writing"
+      ],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "chart/story",
+        "Figma prototype"
+      ],
+      "caution": "Simplify the language, never the resident's actual obligation or right.",
+      "pairsWith": [
+        "water-report-readable"
+      ]
+    },
+    {
+      "id": "art-system-zine",
+      "track": "Essentials",
+      "status": "live",
+      "effort": "day",
+      "title": "Eight Panels, One System",
+      "problem": "Essential systems get explained in reports nobody reads and diagrams nobody keeps. The forms people actually pass around and pin up - a comic, a zine, a poster on a door - are almost never used for infrastructure.",
+      "whoFeelsIt": "Someone who would read eight panels and never a PDF.",
+      "needs": [
+        "making",
+        "writing"
+      ],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "zine/comic",
+        "chart/story"
+      ],
+      "caution": "Simplifying a system is honest; implying it is simpler than it is, is not."
+    },
+    {
+      "id": "essentials-72-hour",
+      "track": "Essentials",
+      "status": "live",
+      "effort": "weekend",
+      "title": "Seventy-Two Hours",
+      "problem": "Plans for a three-day disruption are written at the scale of a city. Households live it at the scale of a block: which taps work, which shop opens, who has a car, who needs power for medical equipment. People fall through the gap between those two scales.",
+      "whoFeelsIt": "A neighbour trying to organise a building with no car and no generator.",
+      "needs": [
+        "data",
+        "design",
+        "facilitation"
+      ],
+      "datasets": [
+        "syn-outages",
+        "census-acs"
+      ],
+      "tools": [],
+      "sources": [
+        "Synthetic outage scenarios",
+        "Census data"
+      ],
+      "formats": [
+        "map",
+        "spreadsheet model",
+        "Figma prototype",
+        "chart/story"
+      ],
+      "caution": "This is a scenario exercise, not a forecast of actual emergency impacts."
+    },
+    {
+      "id": "essentials-access-distance",
+      "track": "Essentials",
+      "status": "live",
+      "effort": "weekend",
+      "title": "Close By, Still Out Of Reach",
+      "problem": "Every map of access measures distance, because distance is the easy thing to measure. Whether a person can actually get to the place - cost, opening hours, bus frequency, a stroller, a wheelchair, a night shift - is the part the data leaves out.",
+      "whoFeelsIt": "Someone whose nearest grocery store is a mile away and effectively unreachable.",
+      "needs": [
+        "data",
+        "code"
+      ],
+      "datasets": [
+        "usda-food-access",
+        "grtc-gtfs",
+        "census-acs"
+      ],
+      "tools": [],
+      "sources": [
+        "USDA food access data",
+        "GRTC GTFS",
+        "Census data"
+      ],
+      "formats": [
+        "map",
+        "chart/story",
+        "spreadsheet model"
+      ],
+      "caution": "Distance does not establish affordability, accessibility, reliability, or service quality, and the output is a hypothesis with evidence rather than proof of inequity."
+    },
+    {
+      "id": "essentials-backup-options",
+      "track": "Essentials",
+      "status": "live",
+      "effort": "weekend",
+      "title": "Who Has A Second Option?",
+      "problem": "Resilience gets described as a property of infrastructure. In practice it is a property of households: a second car, a relative across town, savings, a landlord who answers the phone. Two blocks can lose the same service and have completely different weeks.",
+      "whoFeelsIt": "A household for whom one outage becomes a lost job.",
+      "needs": [
+        "data",
+        "design"
+      ],
+      "datasets": [
+        "census-acs",
+        "syn-facilities",
+        "syn-outages"
+      ],
+      "tools": [],
+      "sources": [
+        "Census data",
+        "Synthetic facility locations",
+        "Synthetic outage scenarios"
+      ],
+      "formats": [
+        "map",
+        "dashboard",
+        "spreadsheet model"
+      ],
+      "caution": "Explain the difference between a screening indicator and an individual person's circumstances."
+    },
+    {
+      "id": "essentials-board-game",
+      "track": "Essentials",
+      "status": "live",
+      "effort": "day",
+      "title": "Nobody Agrees What Comes First",
+      "problem": "Splitting limited resources across water, power and food is a values argument dressed as a technical one, and it is usually settled in rooms residents are not in. The trade-offs are legible enough to argue about at a table, if someone builds the table.",
+      "whoFeelsIt": "Residents who only ever see the decision after it is made.",
+      "needs": [
+        "facilitation",
+        "design",
+        "making"
+      ],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "tabletop game",
+        "Figma prototype",
+        "code"
+      ],
+      "caution": "Make trade-offs visible and ask whose needs each allocation prioritizes; this is a scenario exercise, not a prediction of actual outages."
+    },
+    {
+      "id": "essentials-power-household",
+      "track": "Essentials",
+      "status": "live",
+      "effort": "day",
+      "title": "The Grid Nobody Can Picture",
+      "problem": "Electricity is discussed in units nobody lives in - megawatt hours, generation mix, capacity factors. Between a regional trend and a household's bill or outage sit half a dozen steps that are almost never drawn.",
+      "whoFeelsIt": "A resident who has heard the grid is changing and cannot tell whether their bill is part of that.",
+      "needs": [
+        "data",
+        "writing",
+        "design"
+      ],
+      "datasets": [
+        "eia-elec"
+      ],
+      "tools": [],
+      "sources": [
+        "EIA open electricity data"
+      ],
+      "formats": [
+        "chart/story",
+        "Figma prototype",
+        "spreadsheet model"
+      ],
+      "caution": "Regional trends do not explain every household bill or outage experience."
+    },
+    {
+      "id": "starter-one-row-means",
+      "track": "Flow",
+      "status": "live",
+      "effort": "starter",
+      "title": "What Is One Row?",
+      "problem": "Every dataset here is a pile of rows, and the first honest question about any of them is what a single row represents - one household, one reading, one report, one estimate. Skip it and everything built on top is built on sand.",
+      "whoFeelsIt": "The team three hours in, arguing about a number that means something else.",
+      "needs": [
+        "data",
+        "writing"
+      ],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "data dictionary",
+        "chart/story"
+      ],
+      "caution": "Describe the data as it is, including the fields nobody can explain."
+    },
+    {
+      "id": "flow-bus-pulse",
+      "track": "Flow",
+      "status": "live",
+      "effort": "day",
+      "title": "The Bus On Paper And The Bus You Wait For",
+      "problem": "Transit is published as a schedule, which is a promise. What a rider gets is frequency, reliability, transfers, and whether service exists at the hour they actually work. The schedule is public. The experience is not.",
+      "whoFeelsIt": "A rider whose shift ends after the last useful bus.",
+      "needs": [
+        "data",
+        "code",
+        "writing"
+      ],
+      "datasets": [
+        "grtc-gtfs"
+      ],
+      "tools": [],
+      "sources": [
+        "GRTC GTFS"
+      ],
+      "formats": [
+        "chart/story",
+        "map",
+        "code"
+      ],
+      "caution": "Scheduled service does not always equal experienced reliability."
+    },
+    {
+      "id": "flow-human-not-tracking",
+      "track": "Flow",
+      "status": "live",
+      "effort": "weekend",
+      "title": "Counting People Without Watching Them",
+      "problem": "Almost every question about how a place is used wants a count: how many people cross here, wait here, come back. The instruments that answer it most cheaply are the ones that identify people, and the easy path leads straight to surveillance nobody asked for.",
+      "whoFeelsIt": "A neighbourhood that wants better service and not more cameras.",
+      "needs": [
+        "hardware",
+        "code",
+        "writing"
+      ],
+      "datasets": [],
+      "tools": [
+        "microbit",
+        "nist-privacy"
+      ],
+      "sources": [
+        "micro:bit MakeCode examples",
+        "NIST privacy risk framework"
+      ],
+      "formats": [
+        "physical prototype",
+        "chart/story",
+        "code"
+      ],
+      "caution": "State plainly that the device is not a potable-water testing instrument and not a structural sensor: calibration, engineering knowledge and validation come first. Design for aggregate sensing and reject unnecessary personal surveillance."
+    },
+    {
+      "id": "flow-information-go",
+      "track": "Flow",
+      "status": "live",
+      "effort": "day",
+      "title": "Where Does My Information Go?",
+      "problem": "A civic form asks for a name, an address, an income, a photograph of a document. Where that goes, who reads it, how long it is kept and what else it is used for is rarely stated on the form, and not knowing is enough to stop people applying at all.",
+      "whoFeelsIt": "Someone who abandoned an application rather than hand over what it asked for.",
+      "needs": [
+        "design"
+      ],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "Figma prototype",
+        "service journey",
+        "code"
+      ],
+      "caution": "Collect only information that has a clear purpose."
+    },
+    {
+      "id": "flow-report-repair",
+      "track": "Flow",
+      "status": "live",
+      "effort": "weekend",
+      "title": "Reported. Then What?",
+      "problem": "A resident reports a pothole, a leak, a dead light. The report enters a system of hand-offs, queues and priorities that eventually produces either a repair or silence, and from outside there is no way to tell which is coming, or why.",
+      "whoFeelsIt": "Someone who reported the same thing three times and stopped bothering.",
+      "needs": [
+        "data",
+        "design"
+      ],
+      "datasets": [
+        "syn-service-requests",
+        "syn-work-orders"
+      ],
+      "tools": [],
+      "sources": [
+        "Synthetic service requests",
+        "Synthetic work orders"
+      ],
+      "formats": [
+        "service journey",
+        "dashboard",
+        "Figma prototype"
+      ],
+      "caution": "Redesign one step instead of pretending to replace a municipal platform, and treat a bottleneck as a question to test rather than blame to assign; priority rules are value choices that need public explanation."
+    },
+    {
+      "id": "flow-through-richmond",
+      "track": "Flow",
+      "status": "live",
+      "effort": "weekend",
+      "title": "What Actually Moves Through Here",
+      "problem": "A city is easier to picture as places than as flows, so the flows stay invisible: water, buses, money, waste, information, people. Something enters Richmond, changes hands several times and leaves, and almost none of that path is visible to the people it passes.",
+      "whoFeelsIt": "Anyone trying to understand a system they are standing inside.",
+      "needs": [
+        "data",
+        "code",
+        "design"
+      ],
+      "datasets": [
+        "syn-flows"
+      ],
+      "tools": [
+        "flourish"
+      ],
+      "sources": [
+        "Synthetic flow data",
+        "Flourish"
+      ],
+      "formats": [
+        "map",
+        "Sankey",
+        "animated story",
+        "code"
+      ],
+      "caution": "Be clear about what is measured, estimated, or simply illustrated."
+    },
+    {
+      "id": "starter-block-inventory",
+      "track": "Infrastructure",
+      "status": "live",
+      "effort": "starter",
+      "title": "What Is On This Block?",
+      "problem": "Public infrastructure is invisible until it fails: drains, hydrants, transformers, poles, cabinets, sidewalk seams. Working out what is actually on one block, what each thing does and who is responsible for it is the smallest version of every infrastructure question here.",
+      "whoFeelsIt": "Anyone who has reported a broken thing to the wrong department.",
+      "needs": [
+        "making",
+        "writing"
+      ],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "photo essay",
+        "map"
+      ],
+      "caution": "If you cannot find who maintains something, say so; that gap is itself a finding."
+    },
+    {
+      "id": "access-civic-form-audit",
+      "track": "Infrastructure",
+      "status": "live",
+      "effort": "day",
+      "title": "Digital Infrastructure Is Infrastructure",
+      "problem": "A civic service is now mostly a website, and a website that defeats a screen reader, a small phone or a slow connection is a closed door with no sign on it. Accessibility gets handled as a compliance checkbox rather than as whether the service works.",
+      "whoFeelsIt": "Someone who cannot use the only channel a service offers.",
+      "needs": [
+        "design",
+        "writing"
+      ],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "audit",
+        "Figma prototype",
+        "chart/story"
+      ],
+      "caution": "An audit names barriers a real person hits; it does not certify a site as accessible.",
+      "pairsWith": [
+        "neighborhood-front-door",
+        "water-report-readable"
+      ]
+    },
+    {
+      "id": "cross-stop-drain-order",
+      "track": "Infrastructure",
+      "alsoTracks": [
+        "Flow"
+      ],
+      "status": "live",
+      "effort": "weekend",
+      "title": "One Corner, Three Systems",
+      "problem": "A street corner is transit, drainage and maintenance at the same time, and each is run by a different body with its own data, priorities and blind spots. Nobody owns the corner.",
+      "whoFeelsIt": "The person standing on it, for whom it is one place.",
+      "needs": [
+        "data",
+        "design"
+      ],
+      "datasets": [
+        "grtc-gtfs",
+        "rva-gis",
+        "syn-work-orders"
+      ],
+      "tools": [],
+      "sources": [
+        "GRTC GTFS",
+        "Richmond GIS open data",
+        "Synthetic work orders"
+      ],
+      "formats": [
+        "map",
+        "service journey",
+        "dashboard"
+      ],
+      "caution": "Three partial views do not add up to certainty; name what each system cannot see.",
+      "pairsWith": [
+        "infra-bus-stop",
+        "flow-report-repair"
+      ]
+    },
+    {
+      "id": "infra-asset-first",
+      "track": "Infrastructure",
+      "status": "live",
+      "effort": "weekend",
+      "title": "Which One Gets Fixed First?",
+      "problem": "There is always a longer list of things that need repair than there is money to repair them, so something decides the order. That decision is a set of value judgments - whose street, whose commute, whose risk - and it usually reaches the public as a score with no explanation attached.",
+      "whoFeelsIt": "A street that has been on the list for six years.",
+      "needs": [
+        "data",
+        "design"
+      ],
+      "datasets": [
+        "syn-asset-inventory",
+        "syn-work-orders"
+      ],
+      "tools": [],
+      "sources": [
+        "Synthetic asset inventory",
+        "Synthetic work orders"
+      ],
+      "formats": [
+        "spreadsheet model",
+        "dashboard",
+        "code"
+      ],
+      "caution": "Reward explainability over mathematical complexity, and keep the model a support for discussion rather than something that makes operational repair decisions by itself."
+    },
+    {
+      "id": "infra-broadband",
+      "track": "Infrastructure",
+      "status": "live",
+      "effort": "weekend",
+      "title": "Available Is Not The Same As Connected",
+      "problem": "Broadband coverage is reported by providers as availability, which is a claim about wires. Price, contracts, credit checks, devices and digital skill all sit between availability and a household actually being online, and the official map cannot see any of them.",
+      "whoFeelsIt": "A family with three children, one phone, and homework due.",
+      "needs": [
+        "data",
+        "design"
+      ],
+      "datasets": [
+        "fcc-bdc",
+        "census-acs"
+      ],
+      "tools": [],
+      "sources": [
+        "FCC National Broadband Map",
+        "Census data"
+      ],
+      "formats": [
+        "map",
+        "chart/story",
+        "spreadsheet model"
+      ],
+      "caution": "Provider-reported availability is different from affordability, adoption, and service experience."
+    },
+    {
+      "id": "infra-bus-stop",
+      "track": "Infrastructure",
+      "status": "live",
+      "effort": "weekend",
+      "title": "The Stop With Nothing At It",
+      "problem": "Some bus stops are a shelter, a bench, a light and a sidewalk. Others are a sign in the mud beside a road with no crossing. The difference is often not about how many people use them, and no public list says which stops are which.",
+      "whoFeelsIt": "Someone waiting twenty minutes in the rain with a stroller and no curb.",
+      "needs": [
+        "data",
+        "code",
+        "design"
+      ],
+      "datasets": [
+        "grtc-gtfs",
+        "census-acs"
+      ],
+      "tools": [],
+      "sources": [
+        "GRTC GTFS",
+        "Census data"
+      ],
+      "formats": [
+        "map",
+        "spreadsheet model",
+        "dashboard"
+      ],
+      "caution": "This is a screening tool, not a claim that a score replaces field engineering.",
+      "pairsWith": [
+        "cross-stop-drain-order"
+      ]
+    },
+    {
+      "id": "infra-capital-plan",
+      "track": "Infrastructure",
+      "status": "live",
+      "effort": "day",
+      "title": "The Plan Nobody Can Follow",
+      "problem": "Large transportation projects are decided years ahead in documents built for agencies and funders: cost tables, phases, funding categories. A resident who wants to know what will happen on their street, when, and what it was chosen over has nowhere to look.",
+      "whoFeelsIt": "Someone whose street is in year four of a plan they have never seen.",
+      "needs": [
+        "design",
+        "writing"
+      ],
+      "datasets": [
+        "planrva-lrtp"
+      ],
+      "tools": [],
+      "sources": [
+        "PlanRVA long-range transportation work"
+      ],
+      "formats": [
+        "Figma prototype",
+        "chart/story",
+        "map"
+      ],
+      "caution": "Do not collapse planning trade-offs into a single oversimplified score."
+    },
+    {
+      "id": "starter-one-tract-one-sentence",
+      "track": "Neighborhoods",
+      "status": "live",
+      "effort": "starter",
+      "title": "One Tract, One Indicator",
+      "problem": "Take a single census tract and a single published indicator about it. Working out what that indicator does and does not establish about the people who live there is the smallest version of every neighbourhood question in this pack.",
+      "whoFeelsIt": "Anyone about to make a claim about a neighbourhood from one number.",
+      "needs": [
+        "data"
+      ],
+      "datasets": [
+        "census-acs"
+      ],
+      "tools": [],
+      "sources": [
+        "Census data"
+      ],
+      "formats": [
+        "map",
+        "chart/story"
+      ],
+      "caution": "One indicator describes a tract, never a household.",
+      "pairsWith": [
+        "neighborhood-five-numbers"
+      ]
+    },
+    {
+      "id": "neighborhood-assets",
+      "track": "Neighborhoods",
+      "status": "live",
+      "effort": "day",
+      "title": "Start With What Is Already Here",
+      "problem": "Neighbourhoods are most often mapped by what they lack, because deficits attract funding. The churches, corner stores, mutual aid networks, coaches and blocks that already work go unmapped, and plans get made as though they were not there.",
+      "whoFeelsIt": "An organiser tired of their neighbourhood being described as a problem.",
+      "needs": [
+        "making",
+        "design",
+        "facilitation"
+      ],
+      "datasets": [
+        "rva-gis"
+      ],
+      "tools": [],
+      "sources": [
+        "Richmond GIS open data"
+      ],
+      "formats": [
+        "map",
+        "chart/story",
+        "Figma prototype"
+      ],
+      "caution": "Do not reduce the neighborhood to a vulnerability score."
+    },
+    {
+      "id": "neighborhood-changing",
+      "track": "Neighborhoods",
+      "status": "live",
+      "effort": "weekend",
+      "title": "How Is This Neighbourhood Changing?",
+      "problem": "Change shows up in assessments, sales, permits and demographics - all published, all lagging, none of it saying what residents mean when they say the neighbourhood is changing. The gap between the records and the experience is the interesting part.",
+      "whoFeelsIt": "A long-time resident watching the block change around them.",
+      "needs": [
+        "data",
+        "design"
+      ],
+      "datasets": [
+        "rva-parcels",
+        "census-acs"
+      ],
+      "tools": [],
+      "sources": [
+        "Richmond assessor parcel dataset",
+        "Census data"
+      ],
+      "formats": [
+        "map",
+        "chart/story",
+        "spreadsheet model"
+      ],
+      "caution": "Do not infer an individual household's displacement risk from property or demographic variables."
+    },
+    {
+      "id": "neighborhood-five-numbers",
+      "track": "Neighborhoods",
+      "status": "live",
+      "effort": "day",
+      "title": "A Neighbourhood Is Not Five Numbers",
+      "problem": "Neighbourhoods get described in indicators - median income, tenure, vehicle access, age, race - because those are what is published. Everyone who lives in one knows the description is thin, and the indicators still drive the decisions.",
+      "whoFeelsIt": "A resident who recognises their block in none of the statistics written about it.",
+      "needs": [
+        "data",
+        "writing"
+      ],
+      "datasets": [
+        "census-acs",
+        "rva-gis"
+      ],
+      "tools": [],
+      "sources": [
+        "Census data",
+        "Richmond GIS open data"
+      ],
+      "formats": [
+        "chart/story",
+        "map",
+        "Figma prototype"
+      ],
+      "caution": "A neighborhood is more than its indicators.",
+      "pairsWith": [
+        "starter-one-tract-one-sentence",
+        "neighborhood-assets"
+      ]
+    },
+    {
+      "id": "neighborhood-front-door",
+      "track": "Neighborhoods",
+      "status": "live",
+      "effort": "day",
+      "title": "Where Do I Even Start?",
+      "problem": "An ordinary need - a dead streetlight, a zoning question, a bus that stopped coming - requires knowing which body is responsible, what they call the thing you want, and what they will demand before they act. That knowledge is the real barrier and it is unevenly held.",
+      "whoFeelsIt": "A first-time caller who gets transferred twice and gives up.",
+      "needs": [
+        "design"
+      ],
+      "datasets": [
+        "rva311"
+      ],
+      "tools": [],
+      "sources": [
+        "RVA311 service requests"
+      ],
+      "formats": [
+        "Figma prototype",
+        "service journey",
+        "code"
+      ],
+      "caution": "Make clear which public body handles the issue and what information is required.",
+      "pairsWith": [
+        "access-civic-form-audit"
+      ]
+    },
+    {
+      "id": "neighborhood-heat",
+      "track": "Neighborhoods",
+      "status": "live",
+      "effort": "weekend",
+      "title": "Some Blocks Are Ten Degrees Hotter",
+      "problem": "Summer temperature varies sharply inside the city, and it varies along lines drawn decades ago: tree canopy, pavement, building age. The people on the hot blocks generally know this already. The response is usually designed without them.",
+      "whoFeelsIt": "A household on a treeless block in the third week of August.",
+      "needs": [
+        "data",
+        "design",
+        "writing"
+      ],
+      "datasets": [
+        "planrva-heat",
+        "census-acs"
+      ],
+      "tools": [],
+      "sources": [
+        "PlanRVA extreme heat resources",
+        "Census data"
+      ],
+      "formats": [
+        "map",
+        "chart/story",
+        "Figma prototype"
+      ],
+      "caution": "Ask residents a question before proposing an intervention."
+    },
+    {
+      "id": "neighborhood-without-car",
+      "track": "Neighborhoods",
+      "status": "live",
+      "effort": "day",
+      "title": "Can I Get There Without a Car?",
+      "problem": "Richmond is arranged around driving, and a substantial share of households have no car available. Whether an ordinary trip - clinic, job interview, groceries, a court date - is possible without one is not a question any published map answers.",
+      "whoFeelsIt": "Someone with a 9am appointment across the river and no car.",
+      "needs": [
+        "data",
+        "code"
+      ],
+      "datasets": [
+        "grtc-gtfs",
+        "rva-gis"
+      ],
+      "tools": [],
+      "sources": [
+        "GRTC GTFS",
+        "Richmond GIS open data"
+      ],
+      "formats": [
+        "map",
+        "chart/story",
+        "code"
+      ],
+      "caution": "A nearby transit stop does not automatically mean a trip is usable for every resident."
+    },
+    {
+      "id": "partner-open-problem",
+      "track": "Neighborhoods",
+      "status": "draft",
+      "effort": "weekend",
+      "title": "A Partner's Actual Problem",
+      "problem": "TEMPLATE, not yet live. The projects that outlast the weekend come from an organisation that already has the problem, the context and a reason to keep going. Organisers: recruit two or three partners and fill in one copy of this per partner, in their own words.",
+      "whoFeelsIt": "The partner organisation, who will still have this problem on Monday.",
+      "needs": [
+        "facilitation"
+      ],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "Figma prototype",
+        "chart/story",
+        "dashboard",
+        "spreadsheet model"
+      ],
+      "caution": "Do not promise a partner ongoing maintenance nobody has agreed to provide."
+    },
+    {
+      "id": "water-fake-sensor",
+      "track": "Water",
+      "status": "retired",
+      "effort": "weekend",
+      "title": "Build a Fake Water Sensor Responsibly",
+      "problem": "Use micro:bit temperature or light inputs, or another simple sensor, to demonstrate time-series environmental sensing and data quality.",
+      "needs": [],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "physical prototype",
+        "chart/story",
+        "code"
+      ],
+      "caution": "State clearly that the device is not a potable-water testing instrument.",
+      "retired": {
+        "reason": "Merged into one responsible-sensing prompt with three worked rigs.",
+        "supersededBy": "flow-human-not-tracking"
+      }
+    },
+    {
+      "id": "water-leak-triage",
+      "track": "Water",
+      "status": "retired",
+      "effort": "weekend",
+      "title": "Leak Triage Without the Real Pipes",
+      "problem": "Use a synthetic leak and work-order dataset to create a transparent way to decide which reports deserve attention first.",
+      "needs": [],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "spreadsheet model",
+        "dashboard",
+        "code"
+      ],
+      "caution": "The model can support discussion; it should not automatically make operational repair decisions.",
+      "retired": {
+        "reason": "Same transparent-prioritisation exercise as Which Asset First, on the same synthetic records.",
+        "supersededBy": "infra-asset-first"
+      }
+    },
+    {
+      "id": "essentials-chain",
+      "track": "Essentials",
+      "status": "retired",
+      "effort": "weekend",
+      "title": "When One System Fails, What Else Moves?",
+      "problem": "Model a dependency chain such as power to water pumping to household access, or power to transit signals and mobility.",
+      "needs": [],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "spreadsheet model",
+        "diagram",
+        "code",
+        "Figma prototype"
+      ],
+      "caution": "Explore assumptions instead of predicting actual outages.",
+      "retired": {
+        "reason": "Dependency modelling is too abstract to demo in three days; it is now a mechanic inside the board game.",
+        "supersededBy": "essentials-board-game"
+      }
+    },
+    {
+      "id": "essentials-missing-link",
+      "track": "Essentials",
+      "status": "retired",
+      "effort": "weekend",
+      "title": "Find the Missing Link",
+      "problem": "Identify a place where retailer access, transit coverage, frequency, and population characteristics suggest a question worth investigating.",
+      "needs": [],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "map",
+        "chart/story",
+        "spreadsheet model"
+      ],
+      "caution": "The output is a hypothesis with evidence, not proof that inequity has been established.",
+      "retired": {
+        "reason": "Same USDA/GTFS/Census screening as the access prompt.",
+        "supersededBy": "essentials-access-distance"
+      }
+    },
+    {
+      "id": "flow-bottleneck",
+      "track": "Flow",
+      "status": "retired",
+      "effort": "weekend",
+      "title": "Find the Bottleneck",
+      "problem": "Use a synthetic event log for permits, service requests, buses, queues, or maintenance jobs to visualize where elapsed time accumulates.",
+      "needs": [],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "dashboard",
+        "spreadsheet model",
+        "code"
+      ],
+      "caution": "A bottleneck chart should support questions and tests, not assign blame by itself.",
+      "retired": {
+        "reason": "Folded into the report-to-repair journey, which already walks the same event log.",
+        "supersededBy": "flow-report-repair"
+      }
+    },
+    {
+      "id": "flow-rain-creek-river",
+      "track": "Flow",
+      "status": "retired",
+      "effort": "weekend",
+      "title": "Rain To Creek To River",
+      "problem": "Build an animated or physical explanation of how water crosses invisible geographic boundaries.",
+      "needs": [],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "animated story",
+        "physical prototype",
+        "map",
+        "code"
+      ],
+      "caution": "Keep geographic claims tied to the public watershed source.",
+      "retired": {
+        "reason": "Duplicate watershed explainer.",
+        "supersededBy": "water-rain-go"
+      }
+    },
+    {
+      "id": "infra-bridge-sensor",
+      "track": "Infrastructure",
+      "status": "retired",
+      "effort": "weekend",
+      "title": "Build a Bridge Sensor That Is Not a Bridge Sensor",
+      "problem": "Use a micro:bit accelerometer to show how vibration measurements produce time-series data.",
+      "needs": [],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "physical prototype",
+        "chart/story",
+        "code"
+      ],
+      "caution": "Explain the calibration, engineering knowledge, and validation needed before informing structural decisions.",
+      "retired": {
+        "reason": "Merged into one responsible-sensing prompt with three worked rigs.",
+        "supersededBy": "flow-human-not-tracking"
+      }
+    },
+    {
+      "id": "infra-maintenance",
+      "track": "Infrastructure",
+      "status": "retired",
+      "effort": "weekend",
+      "title": "Maintenance Is Infrastructure",
+      "problem": "Given synthetic work orders, create a dashboard about preventive versus reactive maintenance and how different priority rules affect backlog.",
+      "needs": [],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "dashboard",
+        "spreadsheet model",
+        "code"
+      ],
+      "caution": "Priority rules are value choices and need public explanation.",
+      "retired": {
+        "reason": "Third prompt on the same synthetic work orders; preventive-versus-reactive is now part of the priority model and the repair journey.",
+        "supersededBy": "infra-asset-first"
+      }
+    },
+    {
+      "id": "infra-speed",
+      "track": "Infrastructure",
+      "status": "retired",
+      "effort": "weekend",
+      "title": "Street Speed, Told Clearly",
+      "problem": "Use Richmond public speed information to create a resident-facing explanation of what the data show and which patterns deserve questions.",
+      "needs": [],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "chart/story",
+        "map",
+        "Figma prototype"
+      ],
+      "caution": "The dashboard cannot establish every cause or intervention by itself.",
+      "retired": {
+        "reason": "No confirmed dataset behind 'Richmond public speed information'; highest dead-end risk in the set. Restore once a specific dataset is pinned."
+      }
+    },
+    {
+      "id": "neighborhood-flood",
+      "track": "Neighborhoods",
+      "status": "retired",
+      "effort": "weekend",
+      "title": "Flood Information by Neighborhood",
+      "problem": "Translate regional flood-risk information into a neighborhood-specific civic guide for renters, property owners, and official resources.",
+      "needs": [],
+      "datasets": [],
+      "tools": [],
+      "sources": [],
+      "formats": [
+        "Figma prototype",
+        "map",
+        "chart/story"
+      ],
+      "caution": "Explain what the map tells you and what it does not.",
+      "retired": {
+        "reason": "Duplicate of the renter-facing flood prompt; one flood explainer is enough.",
+        "supersededBy": "water-flood-renter"
+      }
+    }
+  ]
+}

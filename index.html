@@ -1,0 +1,3103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FLOW | Hack for RVA</title>
+  <style>
+    :root {
+      --navy: #164466;
+      --cyan: #1FB9D6;
+      --cyan-hi: #A8F0F7;
+      --cyan-low: #087FA1;
+      --amber: #27B06E;
+      --green: #21A66B;
+      --ground: #E8FBFF;
+      --panel: #F8FEFF;
+      --muted: #5E7C91;
+      --paper: #FFFFFF;
+      --line: #2F7390;
+      --danger: #E95F46;
+      font-family: ui-monospace, "IBM Plex Mono", "Courier New", monospace;
+      color: var(--paper);
+      background: #CFF5FB;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #CFF5FB;
+      letter-spacing: 0;
+      overflow-x: hidden;
+    }
+
+    /* Sprite definitions: drawn once, referenced by every instance. */
+    .sprite-defs { display: none; }
+
+    .river-scene {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+      background: linear-gradient(#CFF5FB 0 39%, #C9EDB9 39% 44%, #7ADBE7 44% 100%);
+    }
+
+    .sun {
+      position: absolute;
+      right: 7vw;
+      top: 4vh;
+      width: 84px;
+      height: 84px;
+      background: #FFF3A6;
+      border: 4px solid var(--navy);
+      box-shadow: 7px 7px 0 rgba(22, 68, 102, 0.16);
+    }
+
+    .cloud {
+      position: absolute;
+      width: 154px;
+      height: 50px;
+      background: #FFFFFF;
+      border: 3px solid var(--navy);
+      box-shadow: 6px 6px 0 rgba(22, 68, 102, 0.16);
+    }
+
+    .cloud::before,
+    .cloud::after {
+      content: "";
+      position: absolute;
+      background: #FFFFFF;
+      border: 3px solid var(--navy);
+      border-bottom: 0;
+    }
+
+    .cloud::before { width: 50px; height: 44px; left: 22px; top: -31px; }
+    .cloud::after { width: 62px; height: 54px; right: 25px; top: -41px; }
+    .cloud.one { left: 9vw; top: 7vh; }
+    .cloud.two { left: 44vw; top: 4vh; transform: scale(0.72); }
+
+    .skyline {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 28vh;
+      height: 17vh;
+      min-height: 130px;
+      display: flex;
+      align-items: end;
+      gap: 8px;
+      padding: 0 3vw;
+      justify-content: space-between;
+      border-bottom: 5px solid var(--navy);
+    }
+
+    .building {
+      /* Plain blocks stretch to fill a wide window so the skyline always
+         reaches both edges; the pixel-art landmarks never scale. */
+      flex: 1 1 var(--w);
+      width: var(--w);
+      height: var(--h);
+      background: var(--c);
+      border: 3px solid var(--navy);
+      box-shadow: 6px 0 0 rgba(22, 68, 102, 0.16);
+      position: relative;
+    }
+
+    .building::before {
+      content: "";
+      position: absolute;
+      inset: 12px 10px;
+      background:
+        repeating-linear-gradient(90deg, #FFFFFF 0 9px, transparent 9px 20px),
+        repeating-linear-gradient(0deg, transparent 0 15px, rgba(22, 68, 102, 0.28) 15px 18px);
+      opacity: 0.8;
+    }
+
+    .bridge {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 43vh;
+      height: 34px;
+      border-top: 5px solid var(--navy);
+      border-bottom: 5px solid var(--navy);
+      background:
+        repeating-linear-gradient(90deg, transparent 0 58px, var(--navy) 58px 64px),
+        rgba(201, 237, 185, 0.9);
+    }
+
+    .river {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 45vh;
+      bottom: 0;
+      background:
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.13) 0 3px, transparent 3px 42px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.11) 0 5px, transparent 5px 72px),
+        linear-gradient(#8DE8F2 0%, #42C9DF 42%, #1397B9 100%);
+    }
+
+    .river::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 18% 22%, rgba(255,255,255,0.42) 0 2px, transparent 3px),
+        radial-gradient(circle at 58% 44%, rgba(255,255,255,0.38) 0 2px, transparent 3px),
+        radial-gradient(circle at 82% 66%, rgba(255,255,255,0.36) 0 2px, transparent 3px);
+      background-size: 180px 120px;
+      animation: bubbles 9s linear infinite;
+    }
+
+    .fish {
+      position: absolute;
+      left: -140px;
+      top: var(--y);
+      animation: swim var(--speed) linear infinite;
+    }
+
+    .fish.back { animation-name: swimBack; transform: scaleX(-1); left: auto; right: -140px; }
+
+    /* Atlantic sturgeon still spawn in the James. This one crosses the river
+       every 40-odd seconds and spends the rest of the cycle off-screen, so it
+       reads as an occasional visitor rather than traffic. */
+    .sturgeon {
+      position: absolute;
+      top: var(--y);
+      right: -150px;
+      animation: sturgeonPass var(--period) linear infinite var(--delay);
+    }
+
+    @keyframes sturgeonPass {
+      0%, 3% { transform: translate(0, 0); }
+      20% { transform: translate(calc(-45vw - 75px), -12px); }
+      42%, 100% { transform: translate(calc(-100vw - 300px), -22px); }
+    }
+
+    /* Rarer than the sturgeon, and it flips halfway across. */
+    .otter {
+      position: absolute;
+      top: var(--y);
+      left: -170px;
+      animation: otterPass var(--period) linear infinite var(--delay);
+    }
+
+    @keyframes otterPass {
+      0%, 2% { transform: translate(0, 0) rotate(0deg); }
+      13% { transform: translate(36vw, -10px) rotate(0deg); }
+      21% { transform: translate(52vw, -15px) rotate(360deg); }
+      33%, 100% { transform: translate(calc(100vw + 340px), -4px) rotate(360deg); }
+    }
+
+    .landmark {
+      align-self: end;
+      flex: 0 0 auto;
+      filter: drop-shadow(6px 0 0 rgba(22, 68, 102, 0.16));
+    }
+
+    /* Water celery, the ribbon grass that actually beds the James. */
+    .kelp {
+      position: absolute;
+      bottom: 0;
+      left: var(--x);
+      transform-origin: bottom center;
+      animation: kelpFloat var(--speed) ease-in-out infinite alternate;
+    }
+
+    .kelp .face::before { left: 3px; }
+    .kelp .face::after { right: 3px; }
+
+    @keyframes swim {
+      from { transform: translateX(0); }
+      to { transform: translateX(calc(100vw + 280px)); }
+    }
+
+    @keyframes swimBack {
+      from { transform: scaleX(-1) translateX(0); }
+      to { transform: scaleX(-1) translateX(calc(100vw + 280px)); }
+    }
+
+    @keyframes kelpFloat {
+      from { transform: skewX(-3deg) rotate(-1deg); }
+      to { transform: skewX(4deg) rotate(1.5deg); }
+    }
+
+    @keyframes bubbles {
+      from { background-position: 0 0; }
+      to { background-position: 80px -240px; }
+    }
+
+    button {
+      font: inherit;
+      color: var(--paper);
+      background: var(--navy);
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      padding: 10px 12px;
+      text-transform: uppercase;
+      cursor: pointer;
+      min-height: 42px;
+    }
+
+    button:hover, button:focus-visible {
+      border-color: var(--cyan);
+      outline: 2px solid rgba(0, 161, 214, 0.35);
+      outline-offset: 2px;
+    }
+
+    button.primary {
+      background: var(--amber);
+      border-color: var(--amber);
+      color: #073A3D;
+      font-weight: 800;
+    }
+
+    button.ghost {
+      background: #F8FEFF;
+      color: var(--navy);
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      width: min(1220px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 286px;
+      gap: 14px;
+      text-shadow: none;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 12px;
+      gap: 12px;
+      background: #F8FEFF;
+      border: 3px solid var(--navy);
+      box-shadow: 8px 8px 0 rgba(22, 68, 102, 0.18);
+      padding: 14px;
+      text-shadow: none;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      color: var(--navy);
+      font-size: clamp(34px, 8vw, 72px);
+      line-height: 0.9;
+      text-transform: uppercase;
+      text-shadow: 4px 4px 0 var(--cyan-hi), 7px 7px 0 rgba(39, 176, 110, 0.65);
+    }
+
+    .tagline {
+      max-width: 640px;
+      color: var(--navy);
+      font-size: 14px;
+      line-height: 1.55;
+      font-weight: 700;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) 320px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .board-wrap, aside, .terminal, .panel {
+      background: #F8FEFF;
+      border: 3px solid var(--navy);
+      border-radius: 2px;
+      box-shadow: 8px 8px 0 rgba(22, 68, 102, 0.20);
+      color: var(--navy);
+      text-shadow: none;
+    }
+
+    .board-wrap { padding: 12px; }
+
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+      color: var(--navy);
+      font-size: 12px;
+      text-transform: uppercase;
+      line-height: 1.4;
+    }
+
+    .canvas-box {
+      display: grid;
+      place-items: center;
+      overflow: auto;
+      border: 3px solid var(--navy);
+      background: #D9F7F5;
+      min-height: 320px;
+    }
+
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      max-width: 100%;
+      height: auto;
+      outline: none;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .controls .primary { grid-column: 1 / -1; }
+    /* With Previous Level hidden on the first board, New Board takes the row. */
+    .controls .ghost[hidden] ~ .ghost { grid-column: 1 / -1; }
+
+    aside { padding: 12px; }
+
+    aside h2, .terminal h2 {
+      color: var(--navy);
+      font-size: 14px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .legend {
+      display: grid;
+      gap: 9px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--navy);
+    }
+
+    .legend-row {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .sprite {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--line);
+      background: #EFFDFF;
+      position: relative;
+    }
+
+    .sprite::before {
+      content: "";
+      position: absolute;
+      inset: 11px 2px;
+      background: var(--cyan);
+    }
+
+    .sprite.elbow::before {
+      inset: 11px 2px 2px 11px;
+      border-left: 7px solid var(--cyan);
+      border-bottom: 7px solid var(--cyan);
+      background: transparent;
+    }
+
+    .tray {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    button.piece {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 4px;
+      min-height: 0;
+      background: var(--paper);
+      color: var(--navy);
+      border: 2px solid var(--line);
+      font-size: 9px;
+      letter-spacing: 1px;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    button.piece:hover {
+      border-color: var(--amber);
+      outline: none;
+    }
+
+    button.piece.selected {
+      border-color: var(--amber);
+      box-shadow: inset 0 0 0 2px var(--amber);
+    }
+
+    button.piece canvas {
+      width: 52px;
+      height: 52px;
+      image-rendering: pixelated;
+      pointer-events: none;
+    }
+
+    .drag-ghost {
+      position: fixed;
+      z-index: 60;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      opacity: 0.9;
+      filter: drop-shadow(3px 3px 0 rgba(22, 68, 102, 0.3));
+    }
+
+    .drag-ghost canvas {
+      width: 64px;
+      height: 64px;
+      image-rendering: pixelated;
+    }
+
+    .prompt-card .who {
+      border-left: 3px solid var(--amber);
+      padding-left: 9px;
+      margin: 10px 0;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--navy);
+    }
+
+    .prompt-card .who strong {
+      color: var(--amber);
+      letter-spacing: 1px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+      margin-top: 12px;
+    }
+
+    .packs {
+      grid-column: 2;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .pack-chip {
+      border: 1px solid var(--line);
+      padding: 9px;
+      font-size: 12px;
+      color: var(--muted);
+      background: #EFFDFF;
+      line-height: 1.4;
+    }
+
+    .terminal {
+      grid-column: 1 / -1;
+      padding: 14px;
+      display: none;
+    }
+
+    .terminal.active { display: block; }
+
+    .terminal-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+    }
+
+    .reached {
+      color: var(--green);
+      font-size: 13px;
+      text-transform: uppercase;
+      line-height: 1.5;
+    }
+
+    .promise {
+      color: var(--navy);
+      font-size: 14px;
+      line-height: 1.45;
+      max-width: 620px;
+    }
+
+    .prompt-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .prompt-card {
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      padding: 12px;
+      background: #F1FCF8;
+      color: var(--navy);
+      min-height: 100%;
+    }
+
+    .prompt-card h3 {
+      color: #0D8B5C;
+      text-transform: uppercase;
+      font-size: 15px;
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+
+    .prompt-card p {
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .meta {
+      color: #087FA1;
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 8px;
+    }
+
+    .caution {
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .toast {
+      min-height: 18px;
+      color: var(--green);
+      font-size: 12px;
+      margin-top: 8px;
+      text-transform: uppercase;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .river::before, .fish, .kelp { animation: none; }
+      /* Park the sturgeon in view rather than leaving it stranded off-screen. */
+      .sturgeon { animation: none; right: 14vw; }
+      .otter { animation: none; left: 22vw; }
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 900px) {
+      .shell, .stage {
+        grid-template-columns: 1fr;
+      }
+
+      .packs { grid-column: auto; }
+      .prompt-grid { grid-template-columns: 1fr; }
+      header, .terminal-top { align-items: start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="river-scene" aria-hidden="true">
+    <svg class="sprite-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><symbol id="s-historic-st-john-s-chu-cfb2" viewBox="0 0 16 40" shape-rendering="crispEdges"><title>Historic St. John's Church</title><path fill="#164466" d="M7 0h2v1h-2zM7 1h2v1h-2zM7 2h2v1h-2zM6 3h1v1h-1zM9 3h1v1h-1zM6 4h1v1h-1zM9 4h1v1h-1zM6 5h1v1h-1zM9 5h1v1h-1zM6 6h4v1h-4zM6 7h1v1h-1zM9 7h1v1h-1zM6 8h1v1h-1zM9 8h1v1h-1zM6 9h1v1h-1zM9 9h1v1h-1zM6 10h1v1h-1zM9 10h1v1h-1zM5 11h2v1h-2zM9 11h2v1h-2zM4 12h1v1h-1zM6 12h1v1h-1zM9 12h1v1h-1zM11 12h1v1h-1zM3 13h1v1h-1zM6 13h4v1h-4zM12 13h1v1h-1zM3 14h10v1h-10zM4 15h1v1h-1zM5 15h6v1h-6zM11 15h1v1h-1zM4 16h1v1h-1zM5 16h6v1h-6zM11 16h1v1h-1zM4 17h1v1h-1zM11 17h1v1h-1zM4 18h1v1h-1zM11 18h1v1h-1zM4 19h1v1h-1zM11 19h1v1h-1zM4 20h1v1h-1zM11 20h1v1h-1zM4 21h1v1h-1zM11 21h1v1h-1zM4 22h1v1h-1zM11 22h1v1h-1zM4 23h1v1h-1zM11 23h1v1h-1zM1 24h4v1h-4zM11 24h4v1h-4zM1 25h1v1h-1zM4 25h8v1h-8zM14 25h1v1h-1zM1 26h1v1h-1zM14 26h1v1h-1zM1 27h1v1h-1zM3 27h2v1h-2zM7 27h2v1h-2zM11 27h2v1h-2zM14 27h1v1h-1zM1 28h1v1h-1zM3 28h2v1h-2zM7 28h2v1h-2zM11 28h2v1h-2zM14 28h1v1h-1zM1 29h1v1h-1zM3 29h2v1h-2zM7 29h2v1h-2zM11 29h2v1h-2zM14 29h1v1h-1zM1 30h1v1h-1zM14 30h1v1h-1zM1 31h1v1h-1zM14 31h1v1h-1zM1 32h1v1h-1zM3 32h2v1h-2zM7 32h2v1h-2zM11 32h2v1h-2zM14 32h1v1h-1zM1 33h1v1h-1zM3 33h2v1h-2zM7 33h2v1h-2zM11 33h2v1h-2zM14 33h1v1h-1zM1 34h1v1h-1zM3 34h2v1h-2zM7 34h2v1h-2zM11 34h2v1h-2zM14 34h1v1h-1zM1 35h1v1h-1zM14 35h1v1h-1zM1 36h1v1h-1zM14 36h1v1h-1zM1 37h1v1h-1zM14 37h1v1h-1zM1 38h14v1h-14z"/><path fill="#FFFFFF" d="M7 3h2v1h-2zM7 4h2v1h-2zM7 5h2v1h-2zM5 12h1v1h-1zM10 12h1v1h-1zM4 13h2v1h-2zM10 13h2v1h-2zM2 25h2v1h-2zM12 25h2v1h-2zM2 26h12v1h-12zM2 27h1v1h-1zM5 27h2v1h-2zM9 27h2v1h-2zM13 27h1v1h-1zM2 28h1v1h-1zM5 28h2v1h-2zM9 28h2v1h-2zM13 28h1v1h-1zM2 29h1v1h-1zM5 29h2v1h-2zM9 29h2v1h-2zM13 29h1v1h-1zM2 30h12v1h-12zM2 31h12v1h-12zM2 32h1v1h-1zM5 32h2v1h-2zM9 32h2v1h-2zM13 32h1v1h-1zM2 33h1v1h-1zM5 33h2v1h-2zM9 33h2v1h-2zM13 33h1v1h-1zM2 34h1v1h-1zM5 34h2v1h-2zM9 34h2v1h-2zM13 34h1v1h-1zM2 35h12v1h-12zM2 36h12v1h-12zM2 37h12v1h-12z"/><path fill="#E8FBFF" d="M7 7h2v1h-2zM7 8h2v1h-2zM7 9h2v1h-2zM7 10h2v1h-2zM7 11h2v1h-2zM7 12h2v1h-2zM5 17h6v1h-6zM5 18h6v1h-6zM5 19h6v1h-6zM5 20h6v1h-6zM5 21h6v1h-6zM5 22h6v1h-6zM5 23h6v1h-6zM5 24h6v1h-6z"/></symbol><symbol id="s-virginia-state-capitol-ce2e" viewBox="0 0 38 34" shape-rendering="crispEdges"><title>Virginia State Capitol</title><path fill="#164466" d="M17 0h2v1h-2zM17 1h2v1h-2zM17 2h3v1h-3zM16 3h2v1h-2zM19 3h2v1h-2zM15 4h2v1h-2zM20 4h2v1h-2zM16 5h1v1h-1zM21 5h1v1h-1zM15 6h2v1h-2zM21 6h2v1h-2zM14 7h1v1h-1zM16 7h1v1h-1zM21 7h1v1h-1zM23 7h1v1h-1zM11 8h3v1h-3zM16 8h1v1h-1zM21 8h1v1h-1zM24 8h3v1h-3zM11 9h2v1h-2zM16 9h6v1h-6zM25 9h2v1h-2zM11 10h1v1h-1zM26 10h1v1h-1zM10 11h1v1h-1zM27 11h1v1h-1zM10 12h18v1h-18zM11 13h1v1h-1zM13 13h1v1h-1zM16 13h1v1h-1zM19 13h1v1h-1zM22 13h1v1h-1zM26 13h1v1h-1zM3 14h9v1h-9zM13 14h1v1h-1zM16 14h1v1h-1zM19 14h1v1h-1zM22 14h1v1h-1zM26 14h9v1h-9zM3 15h1v1h-1zM11 15h1v1h-1zM13 15h1v1h-1zM16 15h1v1h-1zM19 15h1v1h-1zM22 15h1v1h-1zM26 15h1v1h-1zM34 15h1v1h-1zM3 16h1v1h-1zM11 16h1v1h-1zM13 16h1v1h-1zM16 16h1v1h-1zM19 16h1v1h-1zM22 16h1v1h-1zM26 16h1v1h-1zM34 16h1v1h-1zM3 17h1v1h-1zM11 17h1v1h-1zM13 17h1v1h-1zM16 17h1v1h-1zM19 17h1v1h-1zM22 17h1v1h-1zM26 17h1v1h-1zM34 17h1v1h-1zM3 18h1v1h-1zM6 18h2v1h-2zM10 18h1v1h-1zM11 18h1v1h-1zM13 18h1v1h-1zM16 18h1v1h-1zM19 18h1v1h-1zM22 18h1v1h-1zM26 18h1v1h-1zM27 18h1v1h-1zM30 18h2v1h-2zM34 18h1v1h-1zM3 19h1v1h-1zM6 19h2v1h-2zM10 19h1v1h-1zM11 19h1v1h-1zM13 19h1v1h-1zM16 19h1v1h-1zM19 19h1v1h-1zM22 19h1v1h-1zM26 19h1v1h-1zM27 19h1v1h-1zM30 19h2v1h-2zM34 19h1v1h-1zM3 20h1v1h-1zM11 20h1v1h-1zM13 20h1v1h-1zM16 20h1v1h-1zM19 20h1v1h-1zM22 20h1v1h-1zM26 20h1v1h-1zM34 20h1v1h-1zM3 21h1v1h-1zM11 21h1v1h-1zM13 21h1v1h-1zM16 21h1v1h-1zM19 21h1v1h-1zM22 21h1v1h-1zM26 21h1v1h-1zM34 21h1v1h-1zM3 22h1v1h-1zM6 22h2v1h-2zM10 22h1v1h-1zM11 22h16v1h-16zM27 22h1v1h-1zM30 22h2v1h-2zM34 22h1v1h-1zM3 23h1v1h-1zM6 23h2v1h-2zM10 23h2v1h-2zM14 23h2v1h-2zM18 23h2v1h-2zM22 23h2v1h-2zM26 23h2v1h-2zM30 23h2v1h-2zM34 23h1v1h-1zM3 24h1v1h-1zM34 24h1v1h-1zM3 25h1v1h-1zM34 25h1v1h-1zM3 26h1v1h-1zM34 26h1v1h-1zM0 27h4v1h-4zM34 27h4v1h-4zM0 28h1v1h-1zM3 28h1v1h-1zM34 28h1v1h-1zM37 28h1v1h-1zM0 29h1v1h-1zM3 29h1v1h-1zM34 29h1v1h-1zM37 29h1v1h-1zM0 30h1v1h-1zM3 30h1v1h-1zM34 30h1v1h-1zM37 30h1v1h-1zM0 31h1v1h-1zM3 31h1v1h-1zM34 31h1v1h-1zM37 31h1v1h-1zM0 32h1v1h-1zM3 32h32v1h-32zM37 32h1v1h-1zM0 33h38v1h-38z"/><path fill="#23B96D" d="M18 3h1v1h-1zM17 4h3v1h-3z"/><path fill="#E8FBFF" d="M17 5h4v1h-4zM17 6h4v1h-4zM17 7h4v1h-4zM17 8h4v1h-4zM1 28h2v1h-2zM35 28h2v1h-2zM1 29h2v1h-2zM35 29h2v1h-2zM1 30h2v1h-2zM35 30h2v1h-2zM1 31h2v1h-2zM35 31h2v1h-2zM1 32h2v1h-2zM35 32h2v1h-2z"/><path fill="#FFFFFF" d="M15 7h1v1h-1zM22 7h1v1h-1zM14 8h2v1h-2zM22 8h2v1h-2zM13 9h3v1h-3zM22 9h3v1h-3zM12 10h14v1h-14zM11 11h16v1h-16zM12 13h1v1h-1zM14 13h2v1h-2zM17 13h2v1h-2zM20 13h2v1h-2zM23 13h3v1h-3zM12 14h1v1h-1zM14 14h2v1h-2zM17 14h2v1h-2zM20 14h2v1h-2zM23 14h3v1h-3zM4 15h7v1h-7zM12 15h1v1h-1zM14 15h2v1h-2zM17 15h2v1h-2zM20 15h2v1h-2zM23 15h3v1h-3zM27 15h7v1h-7zM4 16h7v1h-7zM12 16h1v1h-1zM14 16h2v1h-2zM17 16h2v1h-2zM20 16h2v1h-2zM23 16h3v1h-3zM27 16h7v1h-7zM4 17h7v1h-7zM12 17h1v1h-1zM14 17h2v1h-2zM17 17h2v1h-2zM20 17h2v1h-2zM23 17h3v1h-3zM27 17h7v1h-7zM4 18h2v1h-2zM8 18h2v1h-2zM12 18h1v1h-1zM14 18h2v1h-2zM17 18h2v1h-2zM20 18h2v1h-2zM23 18h3v1h-3zM28 18h2v1h-2zM32 18h2v1h-2zM4 19h2v1h-2zM8 19h2v1h-2zM12 19h1v1h-1zM14 19h2v1h-2zM17 19h2v1h-2zM20 19h2v1h-2zM23 19h3v1h-3zM28 19h2v1h-2zM32 19h2v1h-2zM4 20h7v1h-7zM12 20h1v1h-1zM14 20h2v1h-2zM17 20h2v1h-2zM20 20h2v1h-2zM23 20h3v1h-3zM27 20h7v1h-7zM4 21h7v1h-7zM12 21h1v1h-1zM14 21h2v1h-2zM17 21h2v1h-2zM20 21h2v1h-2zM23 21h3v1h-3zM27 21h7v1h-7zM4 22h2v1h-2zM8 22h2v1h-2zM28 22h2v1h-2zM32 22h2v1h-2zM4 23h2v1h-2zM8 23h2v1h-2zM12 23h2v1h-2zM16 23h2v1h-2zM20 23h2v1h-2zM24 23h2v1h-2zM28 23h2v1h-2zM32 23h2v1h-2zM4 24h30v1h-30zM4 25h30v1h-30zM4 26h30v1h-30zM4 27h30v1h-30zM4 28h30v1h-30zM4 29h30v1h-30zM4 30h30v1h-30zM4 31h30v1h-30z"/></symbol><symbol id="s-science-museum-of-virg-fcde" viewBox="0 0 36 30" shape-rendering="crispEdges"><title>Science Museum of Virginia, in Broad Street Station</title><path fill="#164466" d="M16 0h4v1h-4zM16 1h1v1h-1zM19 1h1v1h-1zM13 2h4v1h-4zM19 2h3v1h-3zM12 3h2v1h-2zM16 3h4v1h-4zM21 3h2v1h-2zM11 4h2v1h-2zM22 4h2v1h-2zM10 5h2v1h-2zM23 5h2v1h-2zM10 6h1v1h-1zM24 6h1v1h-1zM10 7h1v1h-1zM24 7h1v1h-1zM9 8h2v1h-2zM24 8h2v1h-2zM12 9h1v1h-1zM23 9h1v1h-1zM11 10h1v1h-1zM24 10h1v1h-1zM10 11h1v1h-1zM25 11h1v1h-1zM9 12h1v1h-1zM26 12h1v1h-1zM9 13h18v1h-18zM10 14h1v1h-1zM12 14h1v1h-1zM15 14h1v1h-1zM18 14h1v1h-1zM21 14h1v1h-1zM25 14h1v1h-1zM10 15h1v1h-1zM12 15h1v1h-1zM15 15h1v1h-1zM18 15h1v1h-1zM21 15h1v1h-1zM25 15h1v1h-1zM10 16h1v1h-1zM12 16h1v1h-1zM15 16h1v1h-1zM18 16h1v1h-1zM21 16h1v1h-1zM25 16h1v1h-1zM10 17h1v1h-1zM12 17h1v1h-1zM15 17h1v1h-1zM18 17h1v1h-1zM21 17h1v1h-1zM25 17h1v1h-1zM0 18h11v1h-11zM12 18h1v1h-1zM15 18h1v1h-1zM18 18h1v1h-1zM21 18h1v1h-1zM25 18h11v1h-11zM0 19h1v1h-1zM10 19h1v1h-1zM12 19h1v1h-1zM15 19h1v1h-1zM18 19h1v1h-1zM21 19h1v1h-1zM25 19h1v1h-1zM35 19h1v1h-1zM0 20h1v1h-1zM10 20h16v1h-16zM35 20h1v1h-1zM0 21h1v1h-1zM3 21h2v1h-2zM7 21h2v1h-2zM11 21h2v1h-2zM15 21h2v1h-2zM19 21h2v1h-2zM23 21h2v1h-2zM27 21h2v1h-2zM31 21h2v1h-2zM35 21h1v1h-1zM0 22h1v1h-1zM3 22h2v1h-2zM7 22h2v1h-2zM11 22h2v1h-2zM15 22h2v1h-2zM19 22h2v1h-2zM23 22h2v1h-2zM27 22h2v1h-2zM31 22h2v1h-2zM35 22h1v1h-1zM0 23h1v1h-1zM35 23h1v1h-1zM0 24h1v1h-1zM35 24h1v1h-1zM0 25h1v1h-1zM3 25h2v1h-2zM7 25h2v1h-2zM11 25h2v1h-2zM15 25h2v1h-2zM19 25h2v1h-2zM23 25h2v1h-2zM27 25h2v1h-2zM31 25h2v1h-2zM35 25h1v1h-1zM0 26h1v1h-1zM3 26h2v1h-2zM7 26h2v1h-2zM11 26h2v1h-2zM15 26h2v1h-2zM19 26h2v1h-2zM23 26h2v1h-2zM27 26h2v1h-2zM31 26h2v1h-2zM35 26h1v1h-1zM0 27h1v1h-1zM35 27h1v1h-1zM0 28h1v1h-1zM35 28h1v1h-1zM0 29h36v1h-36z"/><path fill="#E8FBFF" d="M17 1h2v1h-2zM17 2h2v1h-2z"/><path fill="#A8F0F7" d="M14 3h2v1h-2zM20 3h1v1h-1zM13 4h9v1h-9zM12 5h11v1h-11zM11 6h13v1h-13zM11 7h13v1h-13zM11 8h13v1h-13z"/><path fill="#FFFFFF" d="M13 9h10v1h-10zM12 10h12v1h-12zM11 11h14v1h-14zM10 12h16v1h-16zM11 14h1v1h-1zM13 14h2v1h-2zM16 14h2v1h-2zM19 14h2v1h-2zM22 14h3v1h-3zM11 15h1v1h-1zM13 15h2v1h-2zM16 15h2v1h-2zM19 15h2v1h-2zM22 15h3v1h-3zM11 16h1v1h-1zM13 16h2v1h-2zM16 16h2v1h-2zM19 16h2v1h-2zM22 16h3v1h-3zM11 17h1v1h-1zM13 17h2v1h-2zM16 17h2v1h-2zM19 17h2v1h-2zM22 17h3v1h-3zM11 18h1v1h-1zM13 18h2v1h-2zM16 18h2v1h-2zM19 18h2v1h-2zM22 18h3v1h-3zM1 19h9v1h-9zM11 19h1v1h-1zM13 19h2v1h-2zM16 19h2v1h-2zM19 19h2v1h-2zM22 19h3v1h-3zM26 19h9v1h-9zM1 20h9v1h-9zM26 20h9v1h-9zM1 21h2v1h-2zM5 21h2v1h-2zM9 21h2v1h-2zM13 21h2v1h-2zM17 21h2v1h-2zM21 21h2v1h-2zM25 21h2v1h-2zM29 21h2v1h-2zM33 21h2v1h-2zM1 22h2v1h-2zM5 22h2v1h-2zM9 22h2v1h-2zM13 22h2v1h-2zM17 22h2v1h-2zM21 22h2v1h-2zM25 22h2v1h-2zM29 22h2v1h-2zM33 22h2v1h-2zM1 23h34v1h-34zM1 24h34v1h-34zM1 25h2v1h-2zM5 25h2v1h-2zM9 25h2v1h-2zM13 25h2v1h-2zM17 25h2v1h-2zM21 25h2v1h-2zM25 25h2v1h-2zM29 25h2v1h-2zM33 25h2v1h-2zM1 26h2v1h-2zM5 26h2v1h-2zM9 26h2v1h-2zM13 26h2v1h-2zM17 26h2v1h-2zM21 26h2v1h-2zM25 26h2v1h-2zM29 26h2v1h-2zM33 26h2v1h-2zM1 27h34v1h-34zM1 28h34v1h-34z"/></symbol><symbol id="s-american-civil-war-mus-ee5b" viewBox="0 0 32 26" shape-rendering="crispEdges"><title>American Civil War Museum at Historic Tredegar</title><path fill="#164466" d="M26 2h6v1h-6zM26 3h6v1h-6zM26 4h6v1h-6zM12 5h2v1h-2zM26 5h1v1h-1zM31 5h1v1h-1zM10 6h1v1h-1zM15 6h1v1h-1zM26 6h1v1h-1zM31 6h1v1h-1zM8 7h1v1h-1zM17 7h1v1h-1zM26 7h1v1h-1zM31 7h1v1h-1zM6 8h1v1h-1zM19 8h1v1h-1zM26 8h1v1h-1zM31 8h1v1h-1zM4 9h1v1h-1zM21 9h1v1h-1zM26 9h1v1h-1zM31 9h1v1h-1zM2 10h1v1h-1zM23 10h1v1h-1zM26 10h1v1h-1zM31 10h1v1h-1zM0 11h1v1h-1zM25 11h2v1h-2zM31 11h1v1h-1zM0 12h27v1h-27zM31 12h1v1h-1zM0 13h1v1h-1zM25 13h2v1h-2zM31 13h1v1h-1zM0 14h1v1h-1zM25 14h2v1h-2zM31 14h1v1h-1zM0 15h1v1h-1zM3 15h1v1h-1zM8 15h1v1h-1zM13 15h1v1h-1zM18 15h1v1h-1zM23 15h1v1h-1zM25 15h2v1h-2zM31 15h1v1h-1zM0 16h1v1h-1zM2 16h1v1h-1zM3 16h1v1h-1zM4 16h1v1h-1zM7 16h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM12 16h1v1h-1zM13 16h1v1h-1zM14 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM19 16h1v1h-1zM22 16h1v1h-1zM23 16h1v1h-1zM24 16h3v1h-3zM31 16h1v1h-1zM0 17h1v1h-1zM2 17h3v1h-3zM7 17h3v1h-3zM12 17h3v1h-3zM17 17h3v1h-3zM22 17h3v1h-3zM25 17h2v1h-2zM31 17h1v1h-1zM0 18h1v1h-1zM2 18h3v1h-3zM7 18h3v1h-3zM12 18h3v1h-3zM17 18h3v1h-3zM22 18h3v1h-3zM25 18h2v1h-2zM31 18h1v1h-1zM0 19h1v1h-1zM2 19h3v1h-3zM7 19h3v1h-3zM12 19h3v1h-3zM17 19h3v1h-3zM22 19h3v1h-3zM25 19h2v1h-2zM31 19h1v1h-1zM0 20h1v1h-1zM2 20h3v1h-3zM7 20h3v1h-3zM12 20h3v1h-3zM17 20h3v1h-3zM22 20h3v1h-3zM25 20h2v1h-2zM31 20h1v1h-1zM0 21h1v1h-1zM2 21h3v1h-3zM7 21h3v1h-3zM12 21h3v1h-3zM17 21h3v1h-3zM22 21h3v1h-3zM25 21h2v1h-2zM31 21h1v1h-1zM0 22h1v1h-1zM2 22h3v1h-3zM7 22h3v1h-3zM12 22h3v1h-3zM17 22h3v1h-3zM22 22h3v1h-3zM25 22h2v1h-2zM31 22h1v1h-1zM0 23h1v1h-1zM2 23h3v1h-3zM7 23h3v1h-3zM12 23h3v1h-3zM17 23h3v1h-3zM22 23h3v1h-3zM25 23h2v1h-2zM31 23h1v1h-1zM0 24h1v1h-1zM25 24h2v1h-2zM31 24h1v1h-1zM0 25h32v1h-32z"/><path fill="#E8FBFF" d="M27 5h4v1h-4zM27 6h4v1h-4zM27 7h4v1h-4zM27 8h4v1h-4zM27 9h4v1h-4zM27 10h4v1h-4zM27 11h4v1h-4zM27 12h4v1h-4zM27 13h4v1h-4zM27 14h4v1h-4zM27 15h4v1h-4zM27 16h4v1h-4zM27 17h4v1h-4zM27 18h4v1h-4zM27 19h4v1h-4zM27 20h4v1h-4zM27 21h4v1h-4zM27 22h4v1h-4zM27 23h4v1h-4zM27 24h4v1h-4z"/><path fill="#FFFFFF" d="M11 6h4v1h-4zM9 7h8v1h-8zM7 8h12v1h-12zM5 9h16v1h-16zM3 10h20v1h-20zM1 11h24v1h-24zM1 13h24v1h-24zM1 14h24v1h-24zM1 15h2v1h-2zM4 15h4v1h-4zM9 15h4v1h-4zM14 15h4v1h-4zM19 15h4v1h-4zM24 15h1v1h-1zM1 16h1v1h-1zM5 16h2v1h-2zM10 16h2v1h-2zM15 16h2v1h-2zM20 16h2v1h-2zM1 17h1v1h-1zM5 17h2v1h-2zM10 17h2v1h-2zM15 17h2v1h-2zM20 17h2v1h-2zM1 18h1v1h-1zM5 18h2v1h-2zM10 18h2v1h-2zM15 18h2v1h-2zM20 18h2v1h-2zM1 19h1v1h-1zM5 19h2v1h-2zM10 19h2v1h-2zM15 19h2v1h-2zM20 19h2v1h-2zM1 20h1v1h-1zM5 20h2v1h-2zM10 20h2v1h-2zM15 20h2v1h-2zM20 20h2v1h-2zM1 21h1v1h-1zM5 21h2v1h-2zM10 21h2v1h-2zM15 21h2v1h-2zM20 21h2v1h-2zM1 22h1v1h-1zM5 22h2v1h-2zM10 22h2v1h-2zM15 22h2v1h-2zM20 22h2v1h-2zM1 23h1v1h-1zM5 23h2v1h-2zM10 23h2v1h-2zM15 23h2v1h-2zM20 23h2v1h-2zM1 24h24v1h-24z"/></symbol><symbol id="s-an-american-shad-a71c" viewBox="0 0 30 15" shape-rendering="crispEdges"><title>An American shad</title><path fill="#164466" d="M14 1h6v1h-6zM1 2h3v1h-3zM12 2h3v1h-3zM19 2h4v1h-4zM1 3h1v1h-1zM3 3h3v1h-3zM9 3h4v1h-4zM22 3h4v1h-4zM1 4h1v1h-1zM5 4h5v1h-5zM25 4h2v1h-2zM1 5h1v1h-1zM7 5h2v1h-2zM26 5h4v1h-4zM1 6h1v1h-1zM25 6h1v1h-1zM27 6h3v1h-3zM1 7h5v1h-5zM27 7h3v1h-3zM1 8h1v1h-1zM27 8h3v1h-3zM1 9h1v1h-1zM7 9h2v1h-2zM26 9h4v1h-4zM1 10h1v1h-1zM5 10h5v1h-5zM25 10h2v1h-2zM1 11h1v1h-1zM3 11h3v1h-3zM9 11h4v1h-4zM22 11h4v1h-4zM1 12h3v1h-3zM12 12h2v1h-2zM18 12h5v1h-5zM13 13h6v1h-6z"/><path fill="#2C6488" d="M15 2h4v1h-4zM2 3h1v1h-1zM15 3h4v1h-4zM2 4h3v1h-3zM2 5h5v1h-5zM2 6h6v1h-6zM6 7h2v1h-2zM2 8h6v1h-6zM2 9h5v1h-5zM20 9h3v1h-3zM2 10h3v1h-3zM20 10h3v1h-3zM2 11h1v1h-1zM14 11h4v1h-4zM14 12h4v1h-4z"/><path fill="#3E7EA6" d="M13 3h2v1h-2zM19 3h3v1h-3zM10 4h3v1h-3zM22 4h3v1h-3zM9 5h1v1h-1zM25 5h1v1h-1zM8 6h1v1h-1zM26 6h1v1h-1z"/><path fill="#9DE6EC" d="M13 4h9v1h-9zM10 5h11v1h-11zM23 5h2v1h-2zM9 6h15v1h-15zM8 7h19v1h-19zM9 8h17v1h-17zM10 9h10v1h-10zM23 9h2v1h-2zM13 10h7v1h-7z"/><path fill="#E8FBFF" d="M21 5h2v1h-2z"/><path fill="#FFFFFF" d="M24 6h1v1h-1zM8 8h1v1h-1zM26 8h1v1h-1zM9 9h1v1h-1zM25 9h1v1h-1zM10 10h3v1h-3zM23 10h2v1h-2zM13 11h1v1h-1zM18 11h4v1h-4z"/></symbol><symbol id="s-a-largemouth-bass-0b1a" viewBox="0 0 34 19" shape-rendering="crispEdges"><title>A largemouth bass</title><path fill="#164466" d="M13 1h9v1h-9zM13 2h1v1h-1zM15 2h1v1h-1zM17 2h1v1h-1zM19 2h1v1h-1zM21 2h6v1h-6zM2 3h3v1h-3zM13 3h1v1h-1zM26 3h1v1h-1zM2 4h1v1h-1zM4 4h2v1h-2zM11 4h3v1h-3zM26 4h2v1h-2zM2 5h1v1h-1zM5 5h3v1h-3zM9 5h3v1h-3zM27 5h3v1h-3zM2 6h1v1h-1zM7 6h3v1h-3zM29 6h2v1h-2zM2 7h1v1h-1zM8 7h1v1h-1zM28 7h1v1h-1zM30 7h4v1h-4zM2 8h1v1h-1zM30 8h4v1h-4zM2 9h5v1h-5zM30 9h4v1h-4zM2 10h1v1h-1zM30 10h4v1h-4zM2 11h1v1h-1zM8 11h1v1h-1zM30 11h4v1h-4zM2 12h1v1h-1zM7 12h3v1h-3zM29 12h2v1h-2zM2 13h1v1h-1zM5 13h3v1h-3zM9 13h3v1h-3zM27 13h3v1h-3zM2 14h1v1h-1zM4 14h2v1h-2zM11 14h3v1h-3zM25 14h3v1h-3zM2 15h3v1h-3zM13 15h4v1h-4zM22 15h4v1h-4zM16 16h1v1h-1zM22 16h1v1h-1zM16 17h7v1h-7z"/><path fill="#16A249" d="M14 2h1v1h-1zM16 2h1v1h-1zM18 2h1v1h-1zM20 2h1v1h-1zM14 3h12v1h-12zM3 4h1v1h-1zM14 4h4v1h-4zM21 4h5v1h-5zM3 5h2v1h-2zM12 5h2v1h-2zM25 5h2v1h-2zM3 6h4v1h-4zM10 6h2v1h-2zM27 6h2v1h-2zM3 7h5v1h-5zM9 7h1v1h-1zM29 7h1v1h-1zM3 8h6v1h-6zM7 9h2v1h-2zM13 9h1v1h-1zM16 9h1v1h-1zM19 9h1v1h-1zM22 9h1v1h-1zM25 9h1v1h-1zM3 10h6v1h-6zM3 11h5v1h-5zM3 12h4v1h-4zM23 12h4v1h-4zM3 13h2v1h-2zM23 13h4v1h-4zM3 14h1v1h-1zM17 15h5v1h-5zM17 16h5v1h-5z"/><path fill="#23B96D" d="M18 4h3v1h-3zM14 5h11v1h-11zM12 6h15v1h-15zM10 7h17v1h-17zM9 8h21v1h-21zM9 9h4v1h-4zM14 9h2v1h-2zM17 9h2v1h-2zM20 9h2v1h-2zM23 9h2v1h-2zM26 9h4v1h-4zM9 10h21v1h-21zM10 11h19v1h-19zM12 12h11v1h-11zM14 13h9v1h-9zM18 14h3v1h-3z"/><path fill="#FFFFFF" d="M27 7h1v1h-1z"/><path fill="#7EDB9D" d="M9 11h1v1h-1zM29 11h1v1h-1zM10 12h2v1h-2zM27 12h2v1h-2zM12 13h2v1h-2zM14 14h4v1h-4zM21 14h4v1h-4z"/></symbol><symbol id="s-a-blue-catfish-8e61" viewBox="0 0 36 16" shape-rendering="crispEdges"><title>A blue catfish</title><path fill="#164466" d="M15 2h7v1h-7zM2 3h3v1h-3zM15 3h1v1h-1zM21 3h6v1h-6zM33 3h3v1h-3zM2 4h1v1h-1zM4 4h3v1h-3zM11 4h5v1h-5zM26 4h10v1h-10zM2 5h1v1h-1zM6 5h6v1h-6zM33 5h3v1h-3zM2 6h1v1h-1zM8 6h2v1h-2zM30 6h1v1h-1zM33 6h3v1h-3zM2 7h1v1h-1zM32 7h4v1h-4zM2 8h5v1h-5zM32 8h4v1h-4zM2 9h1v1h-1zM32 9h4v1h-4zM2 10h1v1h-1zM8 10h2v1h-2zM33 10h3v1h-3zM2 11h1v1h-1zM6 11h6v1h-6zM31 11h1v1h-1zM33 11h3v1h-3zM2 12h1v1h-1zM4 12h3v1h-3zM11 12h5v1h-5zM28 12h8v1h-8zM2 13h3v1h-3zM15 13h2v1h-2zM23 13h6v1h-6zM31 13h3v1h-3zM16 14h8v1h-8z"/><path fill="#2C6488" d="M16 3h5v1h-5zM3 4h1v1h-1zM16 4h5v1h-5zM23 4h3v1h-3zM3 5h3v1h-3zM3 6h5v1h-5zM3 7h6v1h-6zM7 8h2v1h-2zM3 9h6v1h-6zM3 10h5v1h-5zM3 11h3v1h-3zM24 11h4v1h-4zM3 12h1v1h-1zM17 12h6v1h-6zM24 12h4v1h-4zM17 13h6v1h-6z"/><path fill="#3E7EA6" d="M21 4h2v1h-2zM12 5h4v1h-4zM24 5h9v1h-9zM10 6h2v1h-2zM9 7h1v1h-1z"/><path fill="#9DE6EC" d="M16 5h8v1h-8zM12 6h17v1h-17zM31 6h2v1h-2zM10 7h22v1h-22zM9 8h23v1h-23zM10 9h22v1h-22zM12 10h21v1h-21zM16 11h8v1h-8z"/><path fill="#FFFFFF" d="M29 6h1v1h-1zM9 9h1v1h-1zM10 10h2v1h-2zM12 11h4v1h-4zM28 11h3v1h-3zM32 11h1v1h-1zM16 12h1v1h-1zM23 12h1v1h-1z"/></symbol><symbol id="s-an-atlantic-sturgeon-4920" viewBox="0 0 46 16" shape-rendering="crispEdges"><title>An Atlantic sturgeon</title><path fill="#2C6488" d="M43 0h3v1h-3zM42 1h4v1h-4zM28 2h3v1h-3zM41 2h5v1h-5zM27 3h5v1h-5zM40 3h6v1h-6zM27 4h6v1h-6zM39 4h7v1h-7zM29 5h4v1h-4zM38 5h8v1h-8zM37 6h9v1h-9zM37 7h9v1h-9zM37 8h9v1h-9zM37 9h6v1h-6zM29 10h5v1h-5zM38 10h5v1h-5zM12 11h2v1h-2zM29 11h5v1h-5zM39 11h4v1h-4zM12 12h4v1h-4zM30 12h2v1h-2zM40 12h3v1h-3zM13 13h4v1h-4zM41 13h2v1h-2zM15 14h2v1h-2zM42 14h1v1h-1z"/><path fill="#DDF3F7" d="M13 3h1v1h-1zM16 3h1v1h-1zM19 3h1v1h-1zM22 3h1v1h-1zM10 4h1v1h-1zM25 4h1v1h-1z"/><path fill="#1E4E6B" d="M12 4h12v1h-12zM7 5h22v1h-22zM4 6h4v1h-4zM9 6h3v1h-3zM24 6h9v1h-9zM0 7h7v1h-7zM29 7h8v1h-8zM1 8h3v1h-3zM33 8h4v1h-4zM3 9h1v1h-1zM4 10h1v1h-1zM6 10h3v1h-3z"/><path fill="#FFFFFF" d="M8 6h1v1h-1z"/><path fill="#3E7EA6" d="M12 6h12v1h-12zM7 7h22v1h-22zM4 8h29v1h-29zM7 9h22v1h-22zM12 10h12v1h-12z"/><path fill="#BFE6EF" d="M4 9h3v1h-3zM29 9h4v1h-4zM9 10h3v1h-3zM24 10h5v1h-5zM14 11h10v1h-10z"/></symbol><symbol id="s-water-celery-637f" viewBox="0 0 16 46" shape-rendering="crispEdges"><title>Water celery</title><path fill="#23B96D" d="M10 0h1v1h-1zM10 1h1v1h-1zM8 2h1v1h-1zM10 2h1v1h-1zM8 3h1v1h-1zM10 3h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM10 5h1v1h-1zM7 6h1v1h-1zM10 6h1v1h-1zM7 7h1v1h-1zM9 7h1v1h-1zM7 8h1v1h-1zM9 8h1v1h-1zM7 9h1v1h-1zM9 9h1v1h-1zM7 10h1v1h-1zM9 10h1v1h-1zM7 11h1v1h-1zM7 12h1v1h-1zM6 13h1v1h-1zM14 13h1v1h-1zM6 14h1v1h-1zM14 14h1v1h-1zM6 15h1v1h-1zM10 15h1v1h-1zM14 15h1v1h-1zM6 16h1v1h-1zM10 16h1v1h-1zM13 16h1v1h-1zM6 17h1v1h-1zM10 17h2v1h-2zM13 17h1v1h-1zM6 18h1v1h-1zM8 18h4v1h-4zM13 18h1v1h-1zM5 19h1v1h-1zM8 19h3v1h-3zM13 19h1v1h-1zM5 20h1v1h-1zM8 20h3v1h-3zM13 20h1v1h-1zM5 21h1v1h-1zM8 21h1v1h-1zM10 21h3v1h-3zM5 22h1v1h-1zM8 22h1v1h-1zM10 22h3v1h-3zM5 23h1v1h-1zM8 23h1v1h-1zM10 23h3v1h-3zM5 24h1v1h-1zM8 24h1v1h-1zM10 24h3v1h-3zM4 25h1v1h-1zM8 25h1v1h-1zM10 25h1v1h-1zM12 25h1v1h-1zM4 26h1v1h-1zM8 26h1v1h-1zM11 26h1v1h-1zM4 27h1v1h-1zM8 27h1v1h-1zM11 27h1v1h-1zM4 28h1v1h-1zM8 28h1v1h-1zM11 28h1v1h-1zM4 29h1v1h-1zM8 29h1v1h-1zM11 29h1v1h-1zM4 30h1v1h-1zM7 30h1v1h-1zM11 30h1v1h-1zM4 31h1v1h-1zM7 31h1v1h-1zM11 31h2v1h-2zM4 32h1v1h-1zM7 32h1v1h-1zM10 32h1v1h-1zM12 32h1v1h-1zM4 33h1v1h-1zM7 33h1v1h-1zM10 33h1v1h-1zM12 33h1v1h-1zM3 34h1v1h-1zM7 34h1v1h-1zM10 34h1v1h-1zM12 34h1v1h-1zM3 35h1v1h-1zM7 35h1v1h-1zM10 35h1v1h-1zM12 35h1v1h-1zM3 36h1v1h-1zM7 36h1v1h-1zM10 36h1v1h-1zM12 36h1v1h-1zM3 37h1v1h-1zM6 37h2v1h-2zM9 37h1v1h-1zM12 37h1v1h-1zM3 38h1v1h-1zM6 38h2v1h-2zM9 38h1v1h-1zM12 38h2v1h-2zM3 39h1v1h-1zM6 39h2v1h-2zM9 39h1v1h-1zM12 39h2v1h-2zM3 40h1v1h-1zM6 40h2v1h-2zM9 40h1v1h-1zM12 40h2v1h-2zM3 41h1v1h-1zM6 41h2v1h-2zM9 41h1v1h-1zM12 41h2v1h-2zM3 42h1v1h-1zM6 42h2v1h-2zM9 42h1v1h-1zM12 42h2v1h-2zM3 43h1v1h-1zM6 43h2v1h-2zM9 43h1v1h-1zM12 43h2v1h-2zM3 44h1v1h-1zM6 44h2v1h-2zM9 44h1v1h-1zM12 44h2v1h-2z"/><path fill="#7EDB9D" d="M8 5h1v1h-1zM8 6h1v1h-1zM8 7h1v1h-1zM8 8h1v1h-1zM12 8h1v1h-1zM8 9h1v1h-1zM12 9h1v1h-1zM8 10h1v1h-1zM12 10h1v1h-1zM9 11h1v1h-1zM11 11h1v1h-1zM9 12h1v1h-1zM11 12h1v1h-1zM9 13h1v1h-1zM11 13h1v1h-1zM9 14h1v1h-1zM11 14h1v1h-1zM9 15h1v1h-1zM9 16h1v1h-1zM9 17h1v1h-1zM10 26h1v1h-1zM7 27h1v1h-1zM10 27h1v1h-1zM7 28h1v1h-1zM10 28h1v1h-1zM7 29h1v1h-1zM10 29h1v1h-1zM10 30h1v1h-1zM6 31h1v1h-1zM10 31h1v1h-1zM6 32h1v1h-1zM11 32h1v1h-1zM6 33h1v1h-1zM11 33h1v1h-1zM6 34h1v1h-1zM11 34h1v1h-1zM6 35h1v1h-1zM11 35h1v1h-1zM6 36h1v1h-1zM11 36h1v1h-1zM5 37h1v1h-1zM11 37h1v1h-1zM5 38h1v1h-1zM11 38h1v1h-1zM5 39h1v1h-1zM11 39h1v1h-1zM5 40h1v1h-1zM11 40h1v1h-1zM5 41h1v1h-1zM11 41h1v1h-1zM5 42h1v1h-1zM11 42h1v1h-1zM5 43h1v1h-1zM11 43h1v1h-1zM5 44h1v1h-1zM11 44h1v1h-1z"/><path fill="#16A249" d="M10 11h1v1h-1zM10 12h1v1h-1zM7 13h1v1h-1zM10 13h1v1h-1zM7 14h1v1h-1zM10 14h1v1h-1zM7 15h1v1h-1zM7 16h1v1h-1zM7 17h1v1h-1zM7 18h1v1h-1zM6 19h1v1h-1zM6 20h1v1h-1zM6 21h1v1h-1zM9 21h1v1h-1zM13 21h1v1h-1zM6 22h1v1h-1zM9 22h1v1h-1zM13 22h1v1h-1zM6 23h1v1h-1zM9 23h1v1h-1zM13 23h1v1h-1zM6 24h1v1h-1zM9 24h1v1h-1zM13 24h1v1h-1zM5 25h1v1h-1zM9 25h1v1h-1zM11 25h1v1h-1zM13 25h1v1h-1zM5 26h1v1h-1zM9 26h1v1h-1zM12 26h1v1h-1zM5 27h1v1h-1zM9 27h1v1h-1zM12 27h1v1h-1zM5 28h1v1h-1zM9 28h1v1h-1zM12 28h1v1h-1zM5 29h1v1h-1zM9 29h1v1h-1zM12 29h1v1h-1zM5 30h1v1h-1zM8 30h1v1h-1zM12 30h1v1h-1zM5 31h1v1h-1zM8 31h1v1h-1zM13 31h1v1h-1zM5 32h1v1h-1zM8 32h1v1h-1zM13 32h1v1h-1zM5 33h1v1h-1zM8 33h1v1h-1zM13 33h1v1h-1zM4 34h1v1h-1zM8 34h1v1h-1zM13 34h1v1h-1zM4 35h1v1h-1zM8 35h1v1h-1zM13 35h1v1h-1zM4 36h1v1h-1zM8 36h1v1h-1zM13 36h1v1h-1zM4 37h1v1h-1zM8 37h1v1h-1zM10 37h1v1h-1zM13 37h1v1h-1zM4 38h1v1h-1zM8 38h1v1h-1zM10 38h1v1h-1zM14 38h1v1h-1zM4 39h1v1h-1zM8 39h1v1h-1zM10 39h1v1h-1zM14 39h1v1h-1zM4 40h1v1h-1zM8 40h1v1h-1zM10 40h1v1h-1zM14 40h1v1h-1zM4 41h1v1h-1zM8 41h1v1h-1zM10 41h1v1h-1zM14 41h1v1h-1zM4 42h1v1h-1zM8 42h1v1h-1zM10 42h1v1h-1zM14 42h1v1h-1zM4 43h1v1h-1zM8 43h1v1h-1zM10 43h1v1h-1zM14 43h1v1h-1zM4 44h1v1h-1zM8 44h1v1h-1zM10 44h1v1h-1zM14 44h1v1h-1zM0 45h16v1h-16z"/></symbol><symbol id="s-water-celery-0ff3" viewBox="0 0 13 30" shape-rendering="crispEdges"><title>Water celery</title><path fill="#23B96D" d="M8 0h1v1h-1zM8 1h1v1h-1zM8 2h1v1h-1zM6 3h1v1h-1zM8 3h1v1h-1zM6 4h1v1h-1zM8 4h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM5 6h1v1h-1zM5 7h1v1h-1zM5 8h1v1h-1zM5 9h1v1h-1zM7 9h1v1h-1zM5 10h1v1h-1zM7 10h1v1h-1zM4 11h1v1h-1zM7 11h1v1h-1zM9 11h1v1h-1zM12 11h1v1h-1zM4 12h1v1h-1zM7 12h1v1h-1zM9 12h1v1h-1zM12 12h1v1h-1zM4 13h1v1h-1zM7 13h1v1h-1zM9 13h1v1h-1zM11 13h1v1h-1zM4 14h1v1h-1zM7 14h1v1h-1zM9 14h1v1h-1zM11 14h1v1h-1zM4 15h1v1h-1zM7 15h1v1h-1zM10 15h2v1h-2zM3 16h1v1h-1zM7 16h1v1h-1zM10 16h2v1h-2zM3 17h1v1h-1zM6 17h1v1h-1zM8 17h1v1h-1zM10 17h1v1h-1zM3 18h1v1h-1zM6 18h1v1h-1zM10 18h1v1h-1zM3 19h1v1h-1zM6 19h1v1h-1zM10 19h1v1h-1zM3 20h1v1h-1zM6 20h1v1h-1zM10 20h1v1h-1zM3 21h1v1h-1zM6 21h1v1h-1zM9 21h1v1h-1zM11 21h1v1h-1zM2 22h1v1h-1zM6 22h1v1h-1zM9 22h1v1h-1zM11 22h1v1h-1zM2 23h1v1h-1zM6 23h1v1h-1zM9 23h1v1h-1zM11 23h1v1h-1zM2 24h1v1h-1zM5 24h2v1h-2zM8 24h1v1h-1zM11 24h1v1h-1zM2 25h1v1h-1zM5 25h2v1h-2zM8 25h1v1h-1zM11 25h1v1h-1zM2 26h1v1h-1zM5 26h2v1h-2zM8 26h1v1h-1zM11 26h1v1h-1zM2 27h1v1h-1zM5 27h2v1h-2zM8 27h1v1h-1zM11 27h1v1h-1zM2 28h1v1h-1zM5 28h2v1h-2zM8 28h1v1h-1zM11 28h1v1h-1z"/><path fill="#7EDB9D" d="M7 5h1v1h-1zM7 6h1v1h-1zM7 7h1v1h-1zM7 8h1v1h-1zM10 8h1v1h-1zM8 9h1v1h-1zM10 9h1v1h-1zM8 10h2v1h-2zM8 11h1v1h-1zM8 12h1v1h-1zM8 13h1v1h-1zM8 14h1v1h-1zM9 15h1v1h-1zM9 16h1v1h-1zM9 17h1v1h-1zM9 18h1v1h-1zM9 19h1v1h-1zM9 20h1v1h-1zM5 21h1v1h-1zM10 21h1v1h-1zM5 22h1v1h-1zM10 22h1v1h-1zM5 23h1v1h-1zM10 23h1v1h-1zM4 24h1v1h-1zM10 24h1v1h-1zM4 25h1v1h-1zM10 25h1v1h-1zM4 26h1v1h-1zM10 26h1v1h-1zM4 27h1v1h-1zM10 27h1v1h-1zM4 28h1v1h-1zM10 28h1v1h-1z"/><path fill="#16A249" d="M8 7h1v1h-1zM8 8h1v1h-1zM6 9h1v1h-1zM6 10h1v1h-1zM5 11h1v1h-1zM5 12h1v1h-1zM5 13h1v1h-1zM5 14h1v1h-1zM5 15h1v1h-1zM8 15h1v1h-1zM12 15h1v1h-1zM4 16h1v1h-1zM8 16h1v1h-1zM12 16h1v1h-1zM4 17h1v1h-1zM7 17h1v1h-1zM11 17h1v1h-1zM4 18h1v1h-1zM7 18h1v1h-1zM11 18h1v1h-1zM4 19h1v1h-1zM7 19h1v1h-1zM11 19h1v1h-1zM4 20h1v1h-1zM7 20h1v1h-1zM4 21h1v1h-1zM7 21h1v1h-1zM3 22h1v1h-1zM7 22h1v1h-1zM3 23h1v1h-1zM7 23h1v1h-1zM3 24h1v1h-1zM7 24h1v1h-1zM9 24h1v1h-1zM3 25h1v1h-1zM7 25h1v1h-1zM9 25h1v1h-1zM3 26h1v1h-1zM7 26h1v1h-1zM9 26h1v1h-1zM3 27h1v1h-1zM7 27h1v1h-1zM9 27h1v1h-1zM3 28h1v1h-1zM7 28h1v1h-1zM9 28h1v1h-1zM0 29h13v1h-13z"/></symbol><symbol id="s-a-river-otter" viewBox="0 0 42 15" shape-rendering="crispEdges"><title>A river otter</title><path fill="#164466" d="M31 3h6v1h-6zM9 4h4v1h-4zM15 4h17v1h-17zM34 4h1v1h-1zM36 4h5v1h-5zM6 5h4v1h-4zM12 5h4v1h-4zM29 5h2v1h-2zM37 5h2v1h-2zM39 5h1v1h-1zM40 5h1v1h-1zM3 6h4v1h-4zM12 6h1v1h-1zM35 6h1v1h-1zM37 6h1v1h-1zM38 6h1v1h-1zM39 6h2v1h-2zM0 7h4v1h-4zM36 7h2v1h-2zM38 7h2v1h-2zM0 8h1v1h-1zM36 8h2v1h-2zM38 8h2v1h-2zM0 9h4v1h-4zM37 9h1v1h-1zM38 9h1v1h-1zM39 9h2v1h-2zM3 10h4v1h-4zM12 10h1v1h-1zM37 10h2v1h-2zM39 10h1v1h-1zM40 10h1v1h-1zM6 11h4v1h-4zM12 11h4v1h-4zM30 11h11v1h-11zM9 12h4v1h-4zM15 12h1v1h-1zM20 12h6v1h-6zM30 12h1v1h-1zM15 13h6v1h-6zM25 13h6v1h-6z"/><path fill="#7A5335" d="M32 4h2v1h-2zM35 4h1v1h-1zM10 5h2v1h-2zM16 5h13v1h-13zM31 5h6v1h-6zM7 6h3v1h-3zM13 6h3v1h-3zM29 6h2v1h-2zM4 7h3v1h-3zM12 7h1v1h-1zM1 8h3v1h-3zM16 11h4v1h-4zM26 11h4v1h-4zM16 12h4v1h-4zM26 12h4v1h-4z"/><path fill="#A87A4C" d="M10 6h2v1h-2zM16 6h13v1h-13zM31 6h3v1h-3zM36 6h1v1h-1zM7 7h5v1h-5zM13 7h23v1h-23zM4 8h32v1h-32zM7 9h5v1h-5zM13 9h24v1h-24zM10 10h2v1h-2zM16 10h13v1h-13z"/><path fill="#FFFFFF" d="M34 6h1v1h-1z"/><path fill="#D9BE93" d="M4 9h3v1h-3zM12 9h1v1h-1zM7 10h3v1h-3zM13 10h3v1h-3zM29 10h8v1h-8zM10 11h2v1h-2zM20 11h6v1h-6z"/></symbol></svg>
+    <div class="sun"></div>
+    <div class="cloud one"></div>
+    <div class="cloud two"></div>
+    <div class="skyline">
+      <div class="building" style="--w: 5vw; --h: 58px; --c: #FFFFFF"></div>
+      <div class="building" style="--w: 8vw; --h: 92px; --c: #7EDB9D"></div>
+      <div class="building" style="--w: 7vw; --h: 72px; --c: #C9EDB9"></div>
+      <svg class="landmark" width="48" height="120" viewBox="0 0 16 40"><use href="#s-historic-st-john-s-chu-cfb2"/></svg>
+      <div class="building" style="--w: 6vw; --h: 86px; --c: #FFFFFF"></div>
+      <svg class="landmark" width="114" height="102" viewBox="0 0 38 34"><use href="#s-virginia-state-capitol-ce2e"/></svg>
+      <div class="building" style="--w: 8vw; --h: 96px; --c: #7EDB9D"></div>
+      <svg class="landmark" width="108" height="90" viewBox="0 0 36 30"><use href="#s-science-museum-of-virg-fcde"/></svg>
+      <div class="building" style="--w: 6vw; --h: 78px; --c: #23B96D"></div>
+      <svg class="landmark" width="96" height="78" viewBox="0 0 32 26"><use href="#s-american-civil-war-mus-ee5b"/></svg>
+      <div class="building" style="--w: 7vw; --h: 88px; --c: #C9EDB9"></div>
+      <div class="building" style="--w: 9vw; --h: 112px; --c: #FFFFFF"></div>
+      <div class="building" style="--w: 6vw; --h: 68px; --c: #A8F0F7"></div>
+    </div>
+    <div class="bridge"></div>
+    <div class="river">
+      <svg class="fish" style="--y: 18%; --speed: 19s" width="60" height="30" viewBox="0 0 30 15"><use href="#s-an-american-shad-a71c"/></svg>
+      <svg class="fish back" style="--y: 36%; --speed: 24s" width="68" height="38" viewBox="0 0 34 19"><use href="#s-a-largemouth-bass-0b1a"/></svg>
+      <svg class="fish" style="--y: 58%; --speed: 27s" width="72" height="32" viewBox="0 0 36 16"><use href="#s-a-blue-catfish-8e61"/></svg>
+      <svg class="fish back" style="--y: 74%; --speed: 21s" width="60" height="30" viewBox="0 0 30 15"><use href="#s-an-american-shad-a71c"/></svg>
+      <svg class="otter" style="--y: 30%; --period: 97s; --delay: 34s" width="84" height="30" viewBox="0 0 42 15"><use href="#s-a-river-otter"/></svg>
+      <svg class="sturgeon" style="--y: 46%; --period: 41s; --delay: 7s" width="138" height="48" viewBox="0 0 46 16"><use href="#s-an-atlantic-sturgeon-4920"/></svg>
+      <svg class="kelp" style="--x: 7%; --speed: 2.8s" width="48" height="138" viewBox="0 0 16 46"><use href="#s-water-celery-637f"/></svg>
+      <svg class="kelp" style="--x: 22%; --speed: 2.3s" width="39" height="90" viewBox="0 0 13 30"><use href="#s-water-celery-0ff3"/></svg>
+      <svg class="kelp" style="--x: 51%; --speed: 3.1s" width="48" height="138" viewBox="0 0 16 46"><use href="#s-water-celery-637f"/></svg>
+      <svg class="kelp" style="--x: 77%; --speed: 2.5s" width="39" height="90" viewBox="0 0 13 30"><use href="#s-water-celery-0ff3"/></svg>
+      <svg class="kelp" style="--x: 91%; --speed: 3.4s" width="48" height="138" viewBox="0 0 16 46"><use href="#s-water-celery-637f"/></svg>
+    </div>
+  </div>
+  <main class="shell">
+    <header>
+      <div>
+        <h1>FLOW</h1>
+        <p class="tagline">Route the water through Richmond's everyday infrastructure. Where it lands decides your civic hack pack for March 27-29.</p>
+      </div>
+      <p class="tagline">For hustlers, hackers, and artists. Rotate pipes, release the water, leave with a table-ready challenge.</p>
+    </header>
+
+    <section class="stage" aria-label="Pipe-routing game">
+      <div class="board-wrap">
+        <div class="hud">
+          <div id="levelName">LEVEL 1 / RIVER START</div>
+          <div id="status">Drag a piece from the tray onto the board. Enter releases water.</div>
+        </div>
+        <div class="canvas-box">
+          <canvas id="game" tabindex="0" role="img" aria-label="A blank pipe-routing board. Pick a piece with keys 1 to 3, move the cursor with the arrow keys, press space to place it or to rotate a piece you already placed, and enter to release the water."></canvas>
+        </div>
+        <div class="controls">
+          <button id="release" class="primary">Release The Water</button>
+          <button id="prev" class="ghost">Previous Level</button>
+          <button id="next" class="ghost">New Board</button>
+        </div>
+      </div>
+
+      <aside>
+        <h2>Next Pieces</h2>
+        <div class="tray" id="tray"></div>
+        <p class="small">Drag a piece onto an empty cell, or click the piece and then the cell. All three refresh once a piece is placed, not before.</p>
+        <p class="small">Click a piece you have placed to rotate it. Placed pipes stay on the board for good.</p>
+
+        <h2 style="margin-top: 18px">Where Did It Go?</h2>
+        <div class="legend" id="legend"></div>
+        <p class="small">Every route is a win. One outlet returns two prompts from that track. Two or more outlets return a stronger cross-track pack.</p>
+      </aside>
+    </section>
+
+    <section class="packs" aria-label="Collected hack packs">
+      <aside>
+        <h2>Packs Collected</h2>
+        <div id="history"><p class="small">Collected packs will stay here until you refresh.</p></div>
+      </aside>
+    </section>
+
+    <section id="terminal" class="terminal" aria-live="polite">
+      <div class="terminal-top">
+        <div>
+          <h2>Your Hack Pack</h2>
+          <p id="reached" class="reached"></p>
+        </div>
+        <p class="promise">You do not need to know how the city works before you arrive. Learning how one part works, and helping other people see it clearly, is already a valid hack.</p>
+      </div>
+      <div id="promptGrid" class="prompt-grid"></div>
+      <div class="actions">
+        <button id="copyPack" class="primary">Copy Pack</button>
+        <button id="downloadPack">Download .md</button>
+        <button id="again">Run It Again</button>
+      </div>
+      <div id="toast" class="toast" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const COLORS = {
+      navy: "#164466", cyan: "#1FB9D6", cyanHi: "#A8F0F7", cyanLow: "#087FA1",
+      amber: "#27B06E", green: "#21A66B", ground: "#E8FBFF", panel: "#F8FEFF",
+      muted: "#5E7C91", paper: "#FFFFFF", line: "#2F7390", danger: "#E95F46",
+      boardA: "#E3FAFA", boardB: "#D1F3EF", pipe: "#76C9C8", pipeDark: "#4BA7A8",
+      // Existing infrastructure: same shapes, different material.
+      locked: "#5E9FD0", lockedDark: "#2B5F87"
+    };
+
+    const DIRS = [
+      { name: "N", dx: 0, dy: -1, opposite: 2 },
+      { name: "E", dx: 1, dy: 0, opposite: 3 },
+      { name: "S", dx: 0, dy: 1, opposite: 0 },
+      { name: "W", dx: -1, dy: 0, opposite: 1 }
+    ];
+
+    // ── Rewards ─────────────────────────────────────────────────────────────
+    // rewards.json is the source of truth for the hack packs. Organizers add or
+    // edit prompts there: keep sources as plain names and keep cautions
+    // explicit, since they are part of responsible civic work.
+    //
+    // The block below is a mirror of that file. It exists because a page opened
+    // straight off disk cannot fetch a sibling file, and the game still has to
+    // pay out when someone double-clicks index.html. Served over http the game
+    // reads rewards.json instead, so edits show up on reload. After editing,
+    // run `python3 sync-rewards.py` to refresh the mirror.
+    // REWARDS-MIRROR-START — generated by sync-rewards.py, do not edit by hand
+    const EMBEDDED_REWARDS = {
+      "version": 3,
+      "note": "Source of truth for FLOW's hack packs. Each entry is a problem, not an assignment: `problem` states the tension, `whoFeelsIt` names the person it lands on, `datasets`/`tools` are leads rather than requirements and `formats` are ways in that other people have taken, never a spec. `caution` is the one hard limit and it constrains claims, not form. `sources` is derived from `datasets` + `tools` by sync-rewards.py; edit those instead, then run it.",
+      "tracks": [
+        "Water",
+        "Essentials",
+        "Flow",
+        "Infrastructure",
+        "Neighborhoods"
+      ],
+      "efforts": {
+        "starter": "the smallest honest question inside a bigger problem",
+        "day": "a day's worth of digging",
+        "weekend": "the whole weekend, ideally a mixed team"
+      },
+      "roles": {
+        "data": "finding, cleaning and reading data",
+        "code": "writing software",
+        "design": "interface, service and document design",
+        "writing": "plain-language writing",
+        "making": "physical making, drawing, photography",
+        "hardware": "sensors and microcontrollers",
+        "facilitation": "running a table, interviewing, playtesting"
+      },
+      "datasets": {
+        "usgs-nwis": {
+          "name": "USGS water data",
+          "readiness": "ready",
+          "notes": "waterservices.usgs.gov, no key, CSV or JSON."
+        },
+        "epa-wqp": {
+          "name": "EPA Water Quality Portal",
+          "readiness": "ready",
+          "notes": "Large and messy; pick station and characteristic before the event."
+        },
+        "va-deq": {
+          "name": "Virginia DEQ monitoring",
+          "readiness": "verify",
+          "notes": "VERIFY: retrievable without portal archaeology? Otherwise drop from packs."
+        },
+        "planrva-flood": {
+          "name": "PlanRVA Flood Risk Mapper",
+          "readiness": "verify",
+          "notes": "VERIFY: viewer only, or are layers downloadable? Prompts assume source material, not analysis."
+        },
+        "planrva-watershed": {
+          "name": "PlanRVA watershed mapping",
+          "readiness": "verify",
+          "notes": "VERIFY: viewer only, or downloadable?"
+        },
+        "planrva-heat": {
+          "name": "PlanRVA extreme heat resources",
+          "readiness": "verify",
+          "notes": "VERIFY: viewer only, or downloadable?"
+        },
+        "planrva-lrtp": {
+          "name": "PlanRVA long-range transportation work",
+          "readiness": "ready",
+          "notes": "Published plan documents; a redesign brief, not a dataset."
+        },
+        "rva-ccr": {
+          "name": "Richmond annual water-quality reports",
+          "readiness": "ready",
+          "notes": "Annual consumer confidence report, PDF."
+        },
+        "rva-parcels": {
+          "name": "Richmond assessor parcel dataset",
+          "readiness": "prep",
+          "notes": "Large and messy; clip to one area before the event."
+        },
+        "rva-gis": {
+          "name": "Richmond GIS open data",
+          "readiness": "ready",
+          "notes": "Boundaries, facilities, place data."
+        },
+        "rva311": {
+          "name": "RVA311 service requests",
+          "readiness": "verify",
+          "notes": "VERIFY: does 311 publish request data? If not, the synthetic set covers it."
+        },
+        "rva-speed": {
+          "name": "Richmond public speed information",
+          "readiness": "verify",
+          "notes": "UNRESOLVED: no confirmed dataset. Only referenced by a retired prompt."
+        },
+        "grtc-gtfs": {
+          "name": "GRTC GTFS",
+          "readiness": "ready",
+          "notes": "Static GTFS zip; parsing wants a coder."
+        },
+        "census-acs": {
+          "name": "Census data",
+          "readiness": "ready",
+          "notes": "ACS 5-year; CSV from data.census.gov needs no key, the API needs a free one."
+        },
+        "usda-food-access": {
+          "name": "USDA food access data",
+          "readiness": "ready",
+          "notes": "Food Access Research Atlas and retailer lists."
+        },
+        "eia-elec": {
+          "name": "EIA open electricity data",
+          "readiness": "ready",
+          "notes": "Free API key, issued instantly."
+        },
+        "fcc-bdc": {
+          "name": "FCC National Broadband Map",
+          "readiness": "prep",
+          "notes": "Bulk availability files are far too large for a weekend; clip a Richmond-area extract in advance."
+        },
+        "syn-work-orders": {
+          "name": "Synthetic work orders",
+          "readiness": "prep",
+          "provided": false,
+          "notes": "ORGANIZER MUST AUTHOR before the event."
+        },
+        "syn-service-requests": {
+          "name": "Synthetic service requests",
+          "readiness": "prep",
+          "provided": false,
+          "notes": "ORGANIZER MUST AUTHOR before the event."
+        },
+        "syn-outages": {
+          "name": "Synthetic outage scenarios",
+          "readiness": "prep",
+          "provided": false,
+          "notes": "ORGANIZER MUST AUTHOR before the event."
+        },
+        "syn-facilities": {
+          "name": "Synthetic facility locations",
+          "readiness": "prep",
+          "provided": false,
+          "notes": "ORGANIZER MUST AUTHOR before the event."
+        },
+        "syn-usage-rates": {
+          "name": "Synthetic household usage and rates",
+          "readiness": "prep",
+          "provided": false,
+          "notes": "ORGANIZER MUST AUTHOR before the event."
+        },
+        "syn-asset-inventory": {
+          "name": "Synthetic asset inventory",
+          "readiness": "prep",
+          "provided": false,
+          "notes": "ORGANIZER MUST AUTHOR before the event; sidewalks, pipes, lights or road segments."
+        },
+        "syn-flows": {
+          "name": "Synthetic flow data",
+          "readiness": "prep",
+          "provided": false,
+          "notes": "ORGANIZER MUST AUTHOR before the event."
+        }
+      },
+      "tools": {
+        "flourish": {
+          "name": "Flourish"
+        },
+        "microbit": {
+          "name": "micro:bit MakeCode examples"
+        },
+        "nist-privacy": {
+          "name": "NIST privacy risk framework"
+        }
+      },
+      "prompts": [
+        {
+          "id": "starter-one-gage-one-caption",
+          "track": "Water",
+          "status": "live",
+          "effort": "starter",
+          "title": "One Gage, One Question",
+          "problem": "A single USGS gage on the James publishes a reading every fifteen minutes. Working out what that one number can honestly support, and what it cannot, is the smallest version of every water question in this pack.",
+          "whoFeelsIt": "Anyone who has seen a river reading and had no idea whether it was high.",
+          "needs": [
+            "data",
+            "writing"
+          ],
+          "datasets": [
+            "usgs-nwis"
+          ],
+          "tools": [],
+          "sources": [
+            "USGS water data"
+          ],
+          "formats": [
+            "chart/story"
+          ],
+          "caution": "Two sentences with a stated limit beats five paragraphs of inference.",
+          "pairsWith": [
+            "water-river-pulse"
+          ]
+        },
+        {
+          "id": "art-river-year-object",
+          "track": "Water",
+          "status": "live",
+          "effort": "day",
+          "title": "A Year Of The River You Can Hold",
+          "problem": "A year of river data is thousands of readings that nobody feels. A chart is read in two seconds and forgotten. The same year made physical - printed, folded, woven, sounded, cast - reaches people who will never open a dashboard.",
+          "whoFeelsIt": "A passer-by at a table who would never click a chart.",
+          "needs": [
+            "making",
+            "data"
+          ],
+          "datasets": [
+            "usgs-nwis"
+          ],
+          "tools": [],
+          "sources": [
+            "USGS water data"
+          ],
+          "formats": [
+            "physical prototype",
+            "installation",
+            "chart/story"
+          ],
+          "caution": "Say which readings were smoothed or dropped to make the object work.",
+          "pairsWith": [
+            "water-river-pulse"
+          ]
+        },
+        {
+          "id": "cross-flood-and-word",
+          "track": "Water",
+          "alsoTracks": [
+            "Neighborhoods"
+          ],
+          "status": "live",
+          "effort": "weekend",
+          "title": "The Block That Floods And The Block That Hears About It",
+          "problem": "Flood risk and flood information travel through different systems and do not overlap cleanly. Water goes where the terrain sends it. Warnings go where mailing lists, homeownership, English fluency and smartphones send them.",
+          "whoFeelsIt": "A household in the water's path and outside the warning's.",
+          "needs": [
+            "data",
+            "design",
+            "writing"
+          ],
+          "datasets": [
+            "planrva-flood",
+            "census-acs"
+          ],
+          "tools": [],
+          "sources": [
+            "PlanRVA Flood Risk Mapper",
+            "Census data"
+          ],
+          "formats": [
+            "map",
+            "chart/story",
+            "Figma prototype"
+          ],
+          "caution": "Flood-risk information needs careful explanation and should point residents to official guidance; do not infer any individual household's risk.",
+          "pairsWith": [
+            "water-flood-renter",
+            "neighborhood-heat"
+          ]
+        },
+        {
+          "id": "water-bill-teaches",
+          "track": "Water",
+          "status": "live",
+          "effort": "weekend",
+          "title": "The Bill That Explains Nothing",
+          "problem": "A water bill arrives as a number. It does not say which habits moved it, which part is fixed no matter what you do, or what a neighbour in the same kind of house pays. It is the most regular contact most people have with the water system and it teaches them nothing.",
+          "whoFeelsIt": "A household whose bill doubled and who cannot tell whether that is a leak, a rate change, or a hot August.",
+          "needs": [
+            "data",
+            "design",
+            "code"
+          ],
+          "datasets": [
+            "syn-usage-rates"
+          ],
+          "tools": [],
+          "sources": [
+            "Synthetic household usage and rates"
+          ],
+          "formats": [
+            "spreadsheet model",
+            "Figma prototype",
+            "code"
+          ],
+          "caution": "Show which rates and household assumptions are simplified."
+        },
+        {
+          "id": "water-flood-renter",
+          "track": "Water",
+          "status": "live",
+          "effort": "weekend",
+          "title": "I Rent Here. Am I In Trouble?",
+          "problem": "Flood information is organised around property - owners, parcels, insurance, elevation certificates. Renters are close to half of Richmond's households and inherit the risk without any of the paperwork that would warn them about it.",
+          "whoFeelsIt": "A tenant signing a twelve-month lease on a ground-floor apartment.",
+          "needs": [
+            "design",
+            "writing"
+          ],
+          "datasets": [
+            "planrva-flood"
+          ],
+          "tools": [],
+          "sources": [
+            "PlanRVA Flood Risk Mapper"
+          ],
+          "formats": [
+            "Figma prototype",
+            "map",
+            "chart/story"
+          ],
+          "caution": "Flood-risk information needs careful explanation and should point residents to official guidance.",
+          "pairsWith": [
+            "cross-flood-and-word"
+          ]
+        },
+        {
+          "id": "water-rain-go",
+          "track": "Water",
+          "status": "live",
+          "effort": "day",
+          "title": "Where Does My Rain Go?",
+          "problem": "Rain that falls on one block ends up somewhere, and almost nobody who lives there could tell you where. Storm drains cross boundaries that appear on no map a resident is ever shown.",
+          "whoFeelsIt": "A household that floods and does not know which agency to call.",
+          "needs": [
+            "design",
+            "writing",
+            "data"
+          ],
+          "datasets": [
+            "planrva-watershed"
+          ],
+          "tools": [],
+          "sources": [
+            "PlanRVA watershed mapping"
+          ],
+          "formats": [
+            "map",
+            "chart/story",
+            "Figma prototype",
+            "code"
+          ],
+          "caution": "Watershed maps explain likely drainage relationships; they do not replace site-specific engineering review."
+        },
+        {
+          "id": "water-report-readable",
+          "track": "Water",
+          "status": "live",
+          "effort": "day",
+          "title": "The Report Nobody Can Read",
+          "problem": "Every water utility has to publish an annual quality report, and Richmond's satisfies the law while failing at the job: MCL, turbidity, parts per million, ninety-fifth percentile. It is a compliance document wearing the costume of public information.",
+          "whoFeelsIt": "A parent who wants to know whether the tap is fine for making formula.",
+          "needs": [
+            "design",
+            "writing"
+          ],
+          "datasets": [
+            "rva-ccr"
+          ],
+          "tools": [],
+          "sources": [
+            "Richmond annual water-quality reports"
+          ],
+          "formats": [
+            "Figma prototype",
+            "chart/story",
+            "spreadsheet model"
+          ],
+          "caution": "This is communication design, not an independent declaration of drinking-water safety.",
+          "pairsWith": [
+            "starter-plain-language",
+            "access-civic-form-audit"
+          ]
+        },
+        {
+          "id": "water-river-pulse",
+          "track": "Water",
+          "status": "live",
+          "effort": "day",
+          "title": "The River Has a Pulse",
+          "problem": "The James is measured constantly - flow, temperature, turbidity, dissolved oxygen - and almost none of that reaches the people who swim in it, fish it, or live above it. The numbers are public. The meaning does not travel.",
+          "whoFeelsIt": "Someone deciding whether to put a kayak in the water this weekend.",
+          "needs": [
+            "data",
+            "writing"
+          ],
+          "datasets": [
+            "usgs-nwis",
+            "epa-wqp",
+            "va-deq"
+          ],
+          "tools": [],
+          "sources": [
+            "USGS water data",
+            "EPA Water Quality Portal",
+            "Virginia DEQ monitoring"
+          ],
+          "formats": [
+            "chart/story",
+            "map",
+            "spreadsheet model",
+            "code"
+          ],
+          "caution": "Do not infer causes or safety claims that the selected indicator cannot support.",
+          "pairsWith": [
+            "art-river-year-object",
+            "starter-one-gage-one-caption"
+          ]
+        },
+        {
+          "id": "starter-plain-language",
+          "track": "Essentials",
+          "status": "live",
+          "effort": "starter",
+          "title": "One Paragraph, Nobody Understands",
+          "problem": "Somewhere in a civic notice, bill or form is a single paragraph that decides whether a person acts or gives up. Finding one and working out what it actually asks of somebody is the smallest version of every communication problem in this pack.",
+          "whoFeelsIt": "Anyone who has read an official letter three times and still not known what to do.",
+          "needs": [
+            "writing"
+          ],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "chart/story",
+            "Figma prototype"
+          ],
+          "caution": "Simplify the language, never the resident's actual obligation or right.",
+          "pairsWith": [
+            "water-report-readable"
+          ]
+        },
+        {
+          "id": "art-system-zine",
+          "track": "Essentials",
+          "status": "live",
+          "effort": "day",
+          "title": "Eight Panels, One System",
+          "problem": "Essential systems get explained in reports nobody reads and diagrams nobody keeps. The forms people actually pass around and pin up - a comic, a zine, a poster on a door - are almost never used for infrastructure.",
+          "whoFeelsIt": "Someone who would read eight panels and never a PDF.",
+          "needs": [
+            "making",
+            "writing"
+          ],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "zine/comic",
+            "chart/story"
+          ],
+          "caution": "Simplifying a system is honest; implying it is simpler than it is, is not."
+        },
+        {
+          "id": "essentials-72-hour",
+          "track": "Essentials",
+          "status": "live",
+          "effort": "weekend",
+          "title": "Seventy-Two Hours",
+          "problem": "Plans for a three-day disruption are written at the scale of a city. Households live it at the scale of a block: which taps work, which shop opens, who has a car, who needs power for medical equipment. People fall through the gap between those two scales.",
+          "whoFeelsIt": "A neighbour trying to organise a building with no car and no generator.",
+          "needs": [
+            "data",
+            "design",
+            "facilitation"
+          ],
+          "datasets": [
+            "syn-outages",
+            "census-acs"
+          ],
+          "tools": [],
+          "sources": [
+            "Synthetic outage scenarios",
+            "Census data"
+          ],
+          "formats": [
+            "map",
+            "spreadsheet model",
+            "Figma prototype",
+            "chart/story"
+          ],
+          "caution": "This is a scenario exercise, not a forecast of actual emergency impacts."
+        },
+        {
+          "id": "essentials-access-distance",
+          "track": "Essentials",
+          "status": "live",
+          "effort": "weekend",
+          "title": "Close By, Still Out Of Reach",
+          "problem": "Every map of access measures distance, because distance is the easy thing to measure. Whether a person can actually get to the place - cost, opening hours, bus frequency, a stroller, a wheelchair, a night shift - is the part the data leaves out.",
+          "whoFeelsIt": "Someone whose nearest grocery store is a mile away and effectively unreachable.",
+          "needs": [
+            "data",
+            "code"
+          ],
+          "datasets": [
+            "usda-food-access",
+            "grtc-gtfs",
+            "census-acs"
+          ],
+          "tools": [],
+          "sources": [
+            "USDA food access data",
+            "GRTC GTFS",
+            "Census data"
+          ],
+          "formats": [
+            "map",
+            "chart/story",
+            "spreadsheet model"
+          ],
+          "caution": "Distance does not establish affordability, accessibility, reliability, or service quality, and the output is a hypothesis with evidence rather than proof of inequity."
+        },
+        {
+          "id": "essentials-backup-options",
+          "track": "Essentials",
+          "status": "live",
+          "effort": "weekend",
+          "title": "Who Has A Second Option?",
+          "problem": "Resilience gets described as a property of infrastructure. In practice it is a property of households: a second car, a relative across town, savings, a landlord who answers the phone. Two blocks can lose the same service and have completely different weeks.",
+          "whoFeelsIt": "A household for whom one outage becomes a lost job.",
+          "needs": [
+            "data",
+            "design"
+          ],
+          "datasets": [
+            "census-acs",
+            "syn-facilities",
+            "syn-outages"
+          ],
+          "tools": [],
+          "sources": [
+            "Census data",
+            "Synthetic facility locations",
+            "Synthetic outage scenarios"
+          ],
+          "formats": [
+            "map",
+            "dashboard",
+            "spreadsheet model"
+          ],
+          "caution": "Explain the difference between a screening indicator and an individual person's circumstances."
+        },
+        {
+          "id": "essentials-board-game",
+          "track": "Essentials",
+          "status": "live",
+          "effort": "day",
+          "title": "Nobody Agrees What Comes First",
+          "problem": "Splitting limited resources across water, power and food is a values argument dressed as a technical one, and it is usually settled in rooms residents are not in. The trade-offs are legible enough to argue about at a table, if someone builds the table.",
+          "whoFeelsIt": "Residents who only ever see the decision after it is made.",
+          "needs": [
+            "facilitation",
+            "design",
+            "making"
+          ],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "tabletop game",
+            "Figma prototype",
+            "code"
+          ],
+          "caution": "Make trade-offs visible and ask whose needs each allocation prioritizes; this is a scenario exercise, not a prediction of actual outages."
+        },
+        {
+          "id": "essentials-power-household",
+          "track": "Essentials",
+          "status": "live",
+          "effort": "day",
+          "title": "The Grid Nobody Can Picture",
+          "problem": "Electricity is discussed in units nobody lives in - megawatt hours, generation mix, capacity factors. Between a regional trend and a household's bill or outage sit half a dozen steps that are almost never drawn.",
+          "whoFeelsIt": "A resident who has heard the grid is changing and cannot tell whether their bill is part of that.",
+          "needs": [
+            "data",
+            "writing",
+            "design"
+          ],
+          "datasets": [
+            "eia-elec"
+          ],
+          "tools": [],
+          "sources": [
+            "EIA open electricity data"
+          ],
+          "formats": [
+            "chart/story",
+            "Figma prototype",
+            "spreadsheet model"
+          ],
+          "caution": "Regional trends do not explain every household bill or outage experience."
+        },
+        {
+          "id": "starter-one-row-means",
+          "track": "Flow",
+          "status": "live",
+          "effort": "starter",
+          "title": "What Is One Row?",
+          "problem": "Every dataset here is a pile of rows, and the first honest question about any of them is what a single row represents - one household, one reading, one report, one estimate. Skip it and everything built on top is built on sand.",
+          "whoFeelsIt": "The team three hours in, arguing about a number that means something else.",
+          "needs": [
+            "data",
+            "writing"
+          ],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "data dictionary",
+            "chart/story"
+          ],
+          "caution": "Describe the data as it is, including the fields nobody can explain."
+        },
+        {
+          "id": "flow-bus-pulse",
+          "track": "Flow",
+          "status": "live",
+          "effort": "day",
+          "title": "The Bus On Paper And The Bus You Wait For",
+          "problem": "Transit is published as a schedule, which is a promise. What a rider gets is frequency, reliability, transfers, and whether service exists at the hour they actually work. The schedule is public. The experience is not.",
+          "whoFeelsIt": "A rider whose shift ends after the last useful bus.",
+          "needs": [
+            "data",
+            "code",
+            "writing"
+          ],
+          "datasets": [
+            "grtc-gtfs"
+          ],
+          "tools": [],
+          "sources": [
+            "GRTC GTFS"
+          ],
+          "formats": [
+            "chart/story",
+            "map",
+            "code"
+          ],
+          "caution": "Scheduled service does not always equal experienced reliability."
+        },
+        {
+          "id": "flow-human-not-tracking",
+          "track": "Flow",
+          "status": "live",
+          "effort": "weekend",
+          "title": "Counting People Without Watching Them",
+          "problem": "Almost every question about how a place is used wants a count: how many people cross here, wait here, come back. The instruments that answer it most cheaply are the ones that identify people, and the easy path leads straight to surveillance nobody asked for.",
+          "whoFeelsIt": "A neighbourhood that wants better service and not more cameras.",
+          "needs": [
+            "hardware",
+            "code",
+            "writing"
+          ],
+          "datasets": [],
+          "tools": [
+            "microbit",
+            "nist-privacy"
+          ],
+          "sources": [
+            "micro:bit MakeCode examples",
+            "NIST privacy risk framework"
+          ],
+          "formats": [
+            "physical prototype",
+            "chart/story",
+            "code"
+          ],
+          "caution": "State plainly that the device is not a potable-water testing instrument and not a structural sensor: calibration, engineering knowledge and validation come first. Design for aggregate sensing and reject unnecessary personal surveillance."
+        },
+        {
+          "id": "flow-information-go",
+          "track": "Flow",
+          "status": "live",
+          "effort": "day",
+          "title": "Where Does My Information Go?",
+          "problem": "A civic form asks for a name, an address, an income, a photograph of a document. Where that goes, who reads it, how long it is kept and what else it is used for is rarely stated on the form, and not knowing is enough to stop people applying at all.",
+          "whoFeelsIt": "Someone who abandoned an application rather than hand over what it asked for.",
+          "needs": [
+            "design"
+          ],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "Figma prototype",
+            "service journey",
+            "code"
+          ],
+          "caution": "Collect only information that has a clear purpose."
+        },
+        {
+          "id": "flow-report-repair",
+          "track": "Flow",
+          "status": "live",
+          "effort": "weekend",
+          "title": "Reported. Then What?",
+          "problem": "A resident reports a pothole, a leak, a dead light. The report enters a system of hand-offs, queues and priorities that eventually produces either a repair or silence, and from outside there is no way to tell which is coming, or why.",
+          "whoFeelsIt": "Someone who reported the same thing three times and stopped bothering.",
+          "needs": [
+            "data",
+            "design"
+          ],
+          "datasets": [
+            "syn-service-requests",
+            "syn-work-orders"
+          ],
+          "tools": [],
+          "sources": [
+            "Synthetic service requests",
+            "Synthetic work orders"
+          ],
+          "formats": [
+            "service journey",
+            "dashboard",
+            "Figma prototype"
+          ],
+          "caution": "Redesign one step instead of pretending to replace a municipal platform, and treat a bottleneck as a question to test rather than blame to assign; priority rules are value choices that need public explanation."
+        },
+        {
+          "id": "flow-through-richmond",
+          "track": "Flow",
+          "status": "live",
+          "effort": "weekend",
+          "title": "What Actually Moves Through Here",
+          "problem": "A city is easier to picture as places than as flows, so the flows stay invisible: water, buses, money, waste, information, people. Something enters Richmond, changes hands several times and leaves, and almost none of that path is visible to the people it passes.",
+          "whoFeelsIt": "Anyone trying to understand a system they are standing inside.",
+          "needs": [
+            "data",
+            "code",
+            "design"
+          ],
+          "datasets": [
+            "syn-flows"
+          ],
+          "tools": [
+            "flourish"
+          ],
+          "sources": [
+            "Synthetic flow data",
+            "Flourish"
+          ],
+          "formats": [
+            "map",
+            "Sankey",
+            "animated story",
+            "code"
+          ],
+          "caution": "Be clear about what is measured, estimated, or simply illustrated."
+        },
+        {
+          "id": "starter-block-inventory",
+          "track": "Infrastructure",
+          "status": "live",
+          "effort": "starter",
+          "title": "What Is On This Block?",
+          "problem": "Public infrastructure is invisible until it fails: drains, hydrants, transformers, poles, cabinets, sidewalk seams. Working out what is actually on one block, what each thing does and who is responsible for it is the smallest version of every infrastructure question here.",
+          "whoFeelsIt": "Anyone who has reported a broken thing to the wrong department.",
+          "needs": [
+            "making",
+            "writing"
+          ],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "photo essay",
+            "map"
+          ],
+          "caution": "If you cannot find who maintains something, say so; that gap is itself a finding."
+        },
+        {
+          "id": "access-civic-form-audit",
+          "track": "Infrastructure",
+          "status": "live",
+          "effort": "day",
+          "title": "Digital Infrastructure Is Infrastructure",
+          "problem": "A civic service is now mostly a website, and a website that defeats a screen reader, a small phone or a slow connection is a closed door with no sign on it. Accessibility gets handled as a compliance checkbox rather than as whether the service works.",
+          "whoFeelsIt": "Someone who cannot use the only channel a service offers.",
+          "needs": [
+            "design",
+            "writing"
+          ],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "audit",
+            "Figma prototype",
+            "chart/story"
+          ],
+          "caution": "An audit names barriers a real person hits; it does not certify a site as accessible.",
+          "pairsWith": [
+            "neighborhood-front-door",
+            "water-report-readable"
+          ]
+        },
+        {
+          "id": "cross-stop-drain-order",
+          "track": "Infrastructure",
+          "alsoTracks": [
+            "Flow"
+          ],
+          "status": "live",
+          "effort": "weekend",
+          "title": "One Corner, Three Systems",
+          "problem": "A street corner is transit, drainage and maintenance at the same time, and each is run by a different body with its own data, priorities and blind spots. Nobody owns the corner.",
+          "whoFeelsIt": "The person standing on it, for whom it is one place.",
+          "needs": [
+            "data",
+            "design"
+          ],
+          "datasets": [
+            "grtc-gtfs",
+            "rva-gis",
+            "syn-work-orders"
+          ],
+          "tools": [],
+          "sources": [
+            "GRTC GTFS",
+            "Richmond GIS open data",
+            "Synthetic work orders"
+          ],
+          "formats": [
+            "map",
+            "service journey",
+            "dashboard"
+          ],
+          "caution": "Three partial views do not add up to certainty; name what each system cannot see.",
+          "pairsWith": [
+            "infra-bus-stop",
+            "flow-report-repair"
+          ]
+        },
+        {
+          "id": "infra-asset-first",
+          "track": "Infrastructure",
+          "status": "live",
+          "effort": "weekend",
+          "title": "Which One Gets Fixed First?",
+          "problem": "There is always a longer list of things that need repair than there is money to repair them, so something decides the order. That decision is a set of value judgments - whose street, whose commute, whose risk - and it usually reaches the public as a score with no explanation attached.",
+          "whoFeelsIt": "A street that has been on the list for six years.",
+          "needs": [
+            "data",
+            "design"
+          ],
+          "datasets": [
+            "syn-asset-inventory",
+            "syn-work-orders"
+          ],
+          "tools": [],
+          "sources": [
+            "Synthetic asset inventory",
+            "Synthetic work orders"
+          ],
+          "formats": [
+            "spreadsheet model",
+            "dashboard",
+            "code"
+          ],
+          "caution": "Reward explainability over mathematical complexity, and keep the model a support for discussion rather than something that makes operational repair decisions by itself."
+        },
+        {
+          "id": "infra-broadband",
+          "track": "Infrastructure",
+          "status": "live",
+          "effort": "weekend",
+          "title": "Available Is Not The Same As Connected",
+          "problem": "Broadband coverage is reported by providers as availability, which is a claim about wires. Price, contracts, credit checks, devices and digital skill all sit between availability and a household actually being online, and the official map cannot see any of them.",
+          "whoFeelsIt": "A family with three children, one phone, and homework due.",
+          "needs": [
+            "data",
+            "design"
+          ],
+          "datasets": [
+            "fcc-bdc",
+            "census-acs"
+          ],
+          "tools": [],
+          "sources": [
+            "FCC National Broadband Map",
+            "Census data"
+          ],
+          "formats": [
+            "map",
+            "chart/story",
+            "spreadsheet model"
+          ],
+          "caution": "Provider-reported availability is different from affordability, adoption, and service experience."
+        },
+        {
+          "id": "infra-bus-stop",
+          "track": "Infrastructure",
+          "status": "live",
+          "effort": "weekend",
+          "title": "The Stop With Nothing At It",
+          "problem": "Some bus stops are a shelter, a bench, a light and a sidewalk. Others are a sign in the mud beside a road with no crossing. The difference is often not about how many people use them, and no public list says which stops are which.",
+          "whoFeelsIt": "Someone waiting twenty minutes in the rain with a stroller and no curb.",
+          "needs": [
+            "data",
+            "code",
+            "design"
+          ],
+          "datasets": [
+            "grtc-gtfs",
+            "census-acs"
+          ],
+          "tools": [],
+          "sources": [
+            "GRTC GTFS",
+            "Census data"
+          ],
+          "formats": [
+            "map",
+            "spreadsheet model",
+            "dashboard"
+          ],
+          "caution": "This is a screening tool, not a claim that a score replaces field engineering.",
+          "pairsWith": [
+            "cross-stop-drain-order"
+          ]
+        },
+        {
+          "id": "infra-capital-plan",
+          "track": "Infrastructure",
+          "status": "live",
+          "effort": "day",
+          "title": "The Plan Nobody Can Follow",
+          "problem": "Large transportation projects are decided years ahead in documents built for agencies and funders: cost tables, phases, funding categories. A resident who wants to know what will happen on their street, when, and what it was chosen over has nowhere to look.",
+          "whoFeelsIt": "Someone whose street is in year four of a plan they have never seen.",
+          "needs": [
+            "design",
+            "writing"
+          ],
+          "datasets": [
+            "planrva-lrtp"
+          ],
+          "tools": [],
+          "sources": [
+            "PlanRVA long-range transportation work"
+          ],
+          "formats": [
+            "Figma prototype",
+            "chart/story",
+            "map"
+          ],
+          "caution": "Do not collapse planning trade-offs into a single oversimplified score."
+        },
+        {
+          "id": "starter-one-tract-one-sentence",
+          "track": "Neighborhoods",
+          "status": "live",
+          "effort": "starter",
+          "title": "One Tract, One Indicator",
+          "problem": "Take a single census tract and a single published indicator about it. Working out what that indicator does and does not establish about the people who live there is the smallest version of every neighbourhood question in this pack.",
+          "whoFeelsIt": "Anyone about to make a claim about a neighbourhood from one number.",
+          "needs": [
+            "data"
+          ],
+          "datasets": [
+            "census-acs"
+          ],
+          "tools": [],
+          "sources": [
+            "Census data"
+          ],
+          "formats": [
+            "map",
+            "chart/story"
+          ],
+          "caution": "One indicator describes a tract, never a household.",
+          "pairsWith": [
+            "neighborhood-five-numbers"
+          ]
+        },
+        {
+          "id": "neighborhood-assets",
+          "track": "Neighborhoods",
+          "status": "live",
+          "effort": "day",
+          "title": "Start With What Is Already Here",
+          "problem": "Neighbourhoods are most often mapped by what they lack, because deficits attract funding. The churches, corner stores, mutual aid networks, coaches and blocks that already work go unmapped, and plans get made as though they were not there.",
+          "whoFeelsIt": "An organiser tired of their neighbourhood being described as a problem.",
+          "needs": [
+            "making",
+            "design",
+            "facilitation"
+          ],
+          "datasets": [
+            "rva-gis"
+          ],
+          "tools": [],
+          "sources": [
+            "Richmond GIS open data"
+          ],
+          "formats": [
+            "map",
+            "chart/story",
+            "Figma prototype"
+          ],
+          "caution": "Do not reduce the neighborhood to a vulnerability score."
+        },
+        {
+          "id": "neighborhood-changing",
+          "track": "Neighborhoods",
+          "status": "live",
+          "effort": "weekend",
+          "title": "How Is This Neighbourhood Changing?",
+          "problem": "Change shows up in assessments, sales, permits and demographics - all published, all lagging, none of it saying what residents mean when they say the neighbourhood is changing. The gap between the records and the experience is the interesting part.",
+          "whoFeelsIt": "A long-time resident watching the block change around them.",
+          "needs": [
+            "data",
+            "design"
+          ],
+          "datasets": [
+            "rva-parcels",
+            "census-acs"
+          ],
+          "tools": [],
+          "sources": [
+            "Richmond assessor parcel dataset",
+            "Census data"
+          ],
+          "formats": [
+            "map",
+            "chart/story",
+            "spreadsheet model"
+          ],
+          "caution": "Do not infer an individual household's displacement risk from property or demographic variables."
+        },
+        {
+          "id": "neighborhood-five-numbers",
+          "track": "Neighborhoods",
+          "status": "live",
+          "effort": "day",
+          "title": "A Neighbourhood Is Not Five Numbers",
+          "problem": "Neighbourhoods get described in indicators - median income, tenure, vehicle access, age, race - because those are what is published. Everyone who lives in one knows the description is thin, and the indicators still drive the decisions.",
+          "whoFeelsIt": "A resident who recognises their block in none of the statistics written about it.",
+          "needs": [
+            "data",
+            "writing"
+          ],
+          "datasets": [
+            "census-acs",
+            "rva-gis"
+          ],
+          "tools": [],
+          "sources": [
+            "Census data",
+            "Richmond GIS open data"
+          ],
+          "formats": [
+            "chart/story",
+            "map",
+            "Figma prototype"
+          ],
+          "caution": "A neighborhood is more than its indicators.",
+          "pairsWith": [
+            "starter-one-tract-one-sentence",
+            "neighborhood-assets"
+          ]
+        },
+        {
+          "id": "neighborhood-front-door",
+          "track": "Neighborhoods",
+          "status": "live",
+          "effort": "day",
+          "title": "Where Do I Even Start?",
+          "problem": "An ordinary need - a dead streetlight, a zoning question, a bus that stopped coming - requires knowing which body is responsible, what they call the thing you want, and what they will demand before they act. That knowledge is the real barrier and it is unevenly held.",
+          "whoFeelsIt": "A first-time caller who gets transferred twice and gives up.",
+          "needs": [
+            "design"
+          ],
+          "datasets": [
+            "rva311"
+          ],
+          "tools": [],
+          "sources": [
+            "RVA311 service requests"
+          ],
+          "formats": [
+            "Figma prototype",
+            "service journey",
+            "code"
+          ],
+          "caution": "Make clear which public body handles the issue and what information is required.",
+          "pairsWith": [
+            "access-civic-form-audit"
+          ]
+        },
+        {
+          "id": "neighborhood-heat",
+          "track": "Neighborhoods",
+          "status": "live",
+          "effort": "weekend",
+          "title": "Some Blocks Are Ten Degrees Hotter",
+          "problem": "Summer temperature varies sharply inside the city, and it varies along lines drawn decades ago: tree canopy, pavement, building age. The people on the hot blocks generally know this already. The response is usually designed without them.",
+          "whoFeelsIt": "A household on a treeless block in the third week of August.",
+          "needs": [
+            "data",
+            "design",
+            "writing"
+          ],
+          "datasets": [
+            "planrva-heat",
+            "census-acs"
+          ],
+          "tools": [],
+          "sources": [
+            "PlanRVA extreme heat resources",
+            "Census data"
+          ],
+          "formats": [
+            "map",
+            "chart/story",
+            "Figma prototype"
+          ],
+          "caution": "Ask residents a question before proposing an intervention."
+        },
+        {
+          "id": "neighborhood-without-car",
+          "track": "Neighborhoods",
+          "status": "live",
+          "effort": "day",
+          "title": "Can I Get There Without a Car?",
+          "problem": "Richmond is arranged around driving, and a substantial share of households have no car available. Whether an ordinary trip - clinic, job interview, groceries, a court date - is possible without one is not a question any published map answers.",
+          "whoFeelsIt": "Someone with a 9am appointment across the river and no car.",
+          "needs": [
+            "data",
+            "code"
+          ],
+          "datasets": [
+            "grtc-gtfs",
+            "rva-gis"
+          ],
+          "tools": [],
+          "sources": [
+            "GRTC GTFS",
+            "Richmond GIS open data"
+          ],
+          "formats": [
+            "map",
+            "chart/story",
+            "code"
+          ],
+          "caution": "A nearby transit stop does not automatically mean a trip is usable for every resident."
+        },
+        {
+          "id": "partner-open-problem",
+          "track": "Neighborhoods",
+          "status": "draft",
+          "effort": "weekend",
+          "title": "A Partner's Actual Problem",
+          "problem": "TEMPLATE, not yet live. The projects that outlast the weekend come from an organisation that already has the problem, the context and a reason to keep going. Organisers: recruit two or three partners and fill in one copy of this per partner, in their own words.",
+          "whoFeelsIt": "The partner organisation, who will still have this problem on Monday.",
+          "needs": [
+            "facilitation"
+          ],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "Figma prototype",
+            "chart/story",
+            "dashboard",
+            "spreadsheet model"
+          ],
+          "caution": "Do not promise a partner ongoing maintenance nobody has agreed to provide."
+        },
+        {
+          "id": "water-fake-sensor",
+          "track": "Water",
+          "status": "retired",
+          "effort": "weekend",
+          "title": "Build a Fake Water Sensor Responsibly",
+          "problem": "Use micro:bit temperature or light inputs, or another simple sensor, to demonstrate time-series environmental sensing and data quality.",
+          "needs": [],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "physical prototype",
+            "chart/story",
+            "code"
+          ],
+          "caution": "State clearly that the device is not a potable-water testing instrument.",
+          "retired": {
+            "reason": "Merged into one responsible-sensing prompt with three worked rigs.",
+            "supersededBy": "flow-human-not-tracking"
+          }
+        },
+        {
+          "id": "water-leak-triage",
+          "track": "Water",
+          "status": "retired",
+          "effort": "weekend",
+          "title": "Leak Triage Without the Real Pipes",
+          "problem": "Use a synthetic leak and work-order dataset to create a transparent way to decide which reports deserve attention first.",
+          "needs": [],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "spreadsheet model",
+            "dashboard",
+            "code"
+          ],
+          "caution": "The model can support discussion; it should not automatically make operational repair decisions.",
+          "retired": {
+            "reason": "Same transparent-prioritisation exercise as Which Asset First, on the same synthetic records.",
+            "supersededBy": "infra-asset-first"
+          }
+        },
+        {
+          "id": "essentials-chain",
+          "track": "Essentials",
+          "status": "retired",
+          "effort": "weekend",
+          "title": "When One System Fails, What Else Moves?",
+          "problem": "Model a dependency chain such as power to water pumping to household access, or power to transit signals and mobility.",
+          "needs": [],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "spreadsheet model",
+            "diagram",
+            "code",
+            "Figma prototype"
+          ],
+          "caution": "Explore assumptions instead of predicting actual outages.",
+          "retired": {
+            "reason": "Dependency modelling is too abstract to demo in three days; it is now a mechanic inside the board game.",
+            "supersededBy": "essentials-board-game"
+          }
+        },
+        {
+          "id": "essentials-missing-link",
+          "track": "Essentials",
+          "status": "retired",
+          "effort": "weekend",
+          "title": "Find the Missing Link",
+          "problem": "Identify a place where retailer access, transit coverage, frequency, and population characteristics suggest a question worth investigating.",
+          "needs": [],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "map",
+            "chart/story",
+            "spreadsheet model"
+          ],
+          "caution": "The output is a hypothesis with evidence, not proof that inequity has been established.",
+          "retired": {
+            "reason": "Same USDA/GTFS/Census screening as the access prompt.",
+            "supersededBy": "essentials-access-distance"
+          }
+        },
+        {
+          "id": "flow-bottleneck",
+          "track": "Flow",
+          "status": "retired",
+          "effort": "weekend",
+          "title": "Find the Bottleneck",
+          "problem": "Use a synthetic event log for permits, service requests, buses, queues, or maintenance jobs to visualize where elapsed time accumulates.",
+          "needs": [],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "dashboard",
+            "spreadsheet model",
+            "code"
+          ],
+          "caution": "A bottleneck chart should support questions and tests, not assign blame by itself.",
+          "retired": {
+            "reason": "Folded into the report-to-repair journey, which already walks the same event log.",
+            "supersededBy": "flow-report-repair"
+          }
+        },
+        {
+          "id": "flow-rain-creek-river",
+          "track": "Flow",
+          "status": "retired",
+          "effort": "weekend",
+          "title": "Rain To Creek To River",
+          "problem": "Build an animated or physical explanation of how water crosses invisible geographic boundaries.",
+          "needs": [],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "animated story",
+            "physical prototype",
+            "map",
+            "code"
+          ],
+          "caution": "Keep geographic claims tied to the public watershed source.",
+          "retired": {
+            "reason": "Duplicate watershed explainer.",
+            "supersededBy": "water-rain-go"
+          }
+        },
+        {
+          "id": "infra-bridge-sensor",
+          "track": "Infrastructure",
+          "status": "retired",
+          "effort": "weekend",
+          "title": "Build a Bridge Sensor That Is Not a Bridge Sensor",
+          "problem": "Use a micro:bit accelerometer to show how vibration measurements produce time-series data.",
+          "needs": [],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "physical prototype",
+            "chart/story",
+            "code"
+          ],
+          "caution": "Explain the calibration, engineering knowledge, and validation needed before informing structural decisions.",
+          "retired": {
+            "reason": "Merged into one responsible-sensing prompt with three worked rigs.",
+            "supersededBy": "flow-human-not-tracking"
+          }
+        },
+        {
+          "id": "infra-maintenance",
+          "track": "Infrastructure",
+          "status": "retired",
+          "effort": "weekend",
+          "title": "Maintenance Is Infrastructure",
+          "problem": "Given synthetic work orders, create a dashboard about preventive versus reactive maintenance and how different priority rules affect backlog.",
+          "needs": [],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "dashboard",
+            "spreadsheet model",
+            "code"
+          ],
+          "caution": "Priority rules are value choices and need public explanation.",
+          "retired": {
+            "reason": "Third prompt on the same synthetic work orders; preventive-versus-reactive is now part of the priority model and the repair journey.",
+            "supersededBy": "infra-asset-first"
+          }
+        },
+        {
+          "id": "infra-speed",
+          "track": "Infrastructure",
+          "status": "retired",
+          "effort": "weekend",
+          "title": "Street Speed, Told Clearly",
+          "problem": "Use Richmond public speed information to create a resident-facing explanation of what the data show and which patterns deserve questions.",
+          "needs": [],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "chart/story",
+            "map",
+            "Figma prototype"
+          ],
+          "caution": "The dashboard cannot establish every cause or intervention by itself.",
+          "retired": {
+            "reason": "No confirmed dataset behind 'Richmond public speed information'; highest dead-end risk in the set. Restore once a specific dataset is pinned."
+          }
+        },
+        {
+          "id": "neighborhood-flood",
+          "track": "Neighborhoods",
+          "status": "retired",
+          "effort": "weekend",
+          "title": "Flood Information by Neighborhood",
+          "problem": "Translate regional flood-risk information into a neighborhood-specific civic guide for renters, property owners, and official resources.",
+          "needs": [],
+          "datasets": [],
+          "tools": [],
+          "sources": [],
+          "formats": [
+            "Figma prototype",
+            "map",
+            "chart/story"
+          ],
+          "caution": "Explain what the map tells you and what it does not.",
+          "retired": {
+            "reason": "Duplicate of the renter-facing flood prompt; one flood explainer is enough.",
+            "supersededBy": "water-flood-renter"
+          }
+        }
+      ]
+    };
+    // REWARDS-MIRROR-END
+
+    let PROMPTS = EMBEDDED_REWARDS.prompts;
+
+    // A prompt is only usable if it carries every field the pack screen and the
+    // markdown handout print, so a half-finished entry is dropped rather than
+    // rendered as a blank card. Returns null when nothing survives, which keeps
+    // whatever was already loaded.
+    function usablePrompts(data) {
+      if (!data || !Array.isArray(data.prompts)) return null;
+      // Retired entries stay in the file for provenance and drafts are not
+      // finished, so neither is ever dealt.
+      const kept = data.prompts.filter(p => p && p.id && p.track && p.title && p.problem
+        && (p.status || "live") === "live" && p.caution);
+      return kept.length ? kept : null;
+    }
+
+    // Prefer the file on disk whenever it is reachable. Prompts are not needed
+    // until a pack is unlocked, so this can settle in the background.
+    async function loadRewards() {
+      try {
+        const res = await fetch("rewards.json", { cache: "no-store" });
+        if (!res.ok) return;
+        const kept = usablePrompts(await res.json());
+        if (kept) PROMPTS = kept;
+      } catch {
+        // A file:// page cannot fetch a sibling; the mirror above covers it.
+      }
+    }
+
+    const OUTLETS = [
+      { id: "james", short: "River", label: "The James River", track: "Water", side: "right", icon: "river" },
+      { id: "tap", short: "Tap", label: "A household tap", track: "Essentials", side: "right", icon: "tap" },
+      { id: "plant", short: "Plant", label: "Treatment plant", track: "Flow", side: "bottom", icon: "plant" },
+      { id: "pump", short: "Pump", label: "Pump station", track: "Infrastructure", side: "bottom", icon: "pump" },
+      { id: "block", short: "Block", label: "A neighborhood block", track: "Neighborhoods", side: "right", icon: "block" }
+    ];
+
+    const TILE_BASE = {
+      empty: [],
+      straight: [[0, 2]],
+      elbow: [[0, 1]],
+      tee: [[0, 1, 2]],
+      cross: [[0, 1, 2, 3]],
+      // Nothing places a culvert any more: it is neither dealt to the tray nor
+      // set on a board. The type and its overpass rendering stay so it can be
+      // reintroduced by adding it back to PIECE_BAG or a level's `locked`.
+      culvert: [[0, 2], [1, 3]]
+    };
+
+    // Boards start blank apart from the source stub and a few locked pieces of
+    // existing infrastructure. Everything else is laid by the player from the
+    // tray. An organizer can add a board by appending to this array: `locked`
+    // entries are fixed pipes that can never be rotated or replaced.
+    const LEVELS = [
+      {
+        name: "Level 1 / River Start",
+        size: 6,
+        source: { x: 0, y: 2 },
+        outlets: [
+          { outlet: "james", x: 5, y: 1, dir: 1 },
+          { outlet: "tap", x: 5, y: 4, dir: 1 },
+          { outlet: "plant", x: 3, y: 5, dir: 2 },
+          { outlet: "pump", x: 1, y: 5, dir: 2 },
+          { outlet: "block", x: 5, y: 2, dir: 1 }
+        ],
+        locked: [
+          { x: 0, y: 2, type: "straight", rot: 1 },
+          { x: 2, y: 2, type: "straight", rot: 1 },
+          { x: 4, y: 4, type: "elbow", rot: 3 }
+        ]
+      },
+      {
+        name: "Level 2 / Cross Connections",
+        size: 7,
+        source: { x: 0, y: 3 },
+        outlets: [
+          { outlet: "james", x: 6, y: 1, dir: 1 },
+          { outlet: "tap", x: 6, y: 3, dir: 1 },
+          { outlet: "plant", x: 4, y: 6, dir: 2 },
+          { outlet: "pump", x: 2, y: 6, dir: 2 },
+          { outlet: "block", x: 6, y: 5, dir: 1 }
+        ],
+        locked: [
+          { x: 0, y: 3, type: "straight", rot: 1 },
+          { x: 3, y: 3, type: "cross", rot: 0 },
+          { x: 5, y: 1, type: "elbow", rot: 3 }
+        ]
+      },
+      {
+        name: "Level 3 / Two Systems",
+        size: 7,
+        source: { x: 0, y: 2 },
+        outlets: [
+          { outlet: "james", x: 6, y: 0, dir: 1 },
+          { outlet: "tap", x: 6, y: 2, dir: 1 },
+          { outlet: "plant", x: 5, y: 6, dir: 2 },
+          { outlet: "pump", x: 1, y: 6, dir: 2 },
+          { outlet: "block", x: 6, y: 4, dir: 1 }
+        ],
+        locked: [
+          { x: 0, y: 2, type: "straight", rot: 1 },
+          { x: 2, y: 2, type: "tee", rot: 0 },
+          { x: 4, y: 5, type: "straight", rot: 0 },
+          { x: 6, y: 2, type: "straight", rot: 1 }
+        ]
+      }
+    ];
+
+    // The tray deals from this weighted bag. Elbows and straights dominate so a
+    // board stays routable; the cross is the lucky draw. Culverts are
+    // deliberately absent: every piece here connects whatever it touches, and
+    // a culvert does not, so it belongs on the board as locked infrastructure
+    // the player routes around rather than as a piece they can be dealt.
+    const PIECE_BAG = [
+      { type: "elbow", weight: 36 },
+      { type: "straight", weight: 30 },
+      { type: "tee", weight: 20 },
+      { type: "cross", weight: 14 }
+    ];
+    const HAND_SIZE = 3;
+    // true deals a whole new tray once a piece lands; false would refill only
+    // the slot that was used and leave the two you passed over on offer.
+    const REFILL_WHOLE_HAND = true;
+
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const statusEl = document.getElementById("status");
+    const levelNameEl = document.getElementById("levelName");
+    const terminal = document.getElementById("terminal");
+    const promptGrid = document.getElementById("promptGrid");
+    const reachedEl = document.getElementById("reached");
+    const toast = document.getElementById("toast");
+    const historyEl = document.getElementById("history");
+    const tray = document.getElementById("tray");
+    const prevButton = document.getElementById("prev");
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let board, levelIndex = 0, cursor = { x: 0, y: 0 }, flow = new Map(), leaks = [];
+    let animating = false, animStart = 0, lastPack = null, history = [];
+    // Tray state: three offered pieces, which one is armed, and the in-flight drag.
+    let hand = [], selectedSlot = -1, dragState = null, dragCell = null, ghost = null, placedCount = 0;
+    // Tiles travelled by the water front; Infinity means the run has settled.
+    let waterFront = Infinity;
+    // Bumped on every board load so a release still in flight is abandoned
+    // instead of finishing onto the new board.
+    let runId = 0;
+
+    function makeTile(type, rot = 0, locked = false) {
+      return { type, rot, locked, solvedRot: rot };
+    }
+
+    function loadLevel(index) {
+      terminal.classList.remove("active");
+      toast.textContent = "";
+      // Drop any run still in flight so a new board can never start deadlocked.
+      runId++;
+      animating = false;
+      waterFront = Infinity;
+      flow = new Map();
+      leaks = [];
+      placedCount = 0;
+      selectedSlot = -1;
+      endDrag();
+      levelIndex = ((index % LEVELS.length) + LEVELS.length) % LEVELS.length;
+      // There is nothing before the first board, so the control does not exist.
+      prevButton.hidden = levelIndex === 0;
+      board = buildBoard(LEVELS[levelIndex]);
+      cursor = { ...board.source };
+      fillHand();
+      renderHand();
+      levelNameEl.textContent = board.name;
+      statusEl.textContent = "Drag a piece from the tray onto the board. Enter releases water.";
+      resizeCanvas();
+      draw();
+      updateAlt();
+    }
+
+    function randInt(n) {
+      return Math.floor(Math.random() * n);
+    }
+
+    // A board is empty everywhere except the locked pieces the level declares.
+    // Empty cells are the only cells a tray piece can be dropped into.
+    function buildBoard(level) {
+      const tiles = [];
+      for (let y = 0; y < level.size; y++) {
+        const row = [];
+        for (let x = 0; x < level.size; x++) row.push(makeTile("empty", 0, false));
+        tiles.push(row);
+      }
+      for (const piece of level.locked) {
+        tiles[piece.y][piece.x] = makeTile(piece.type, piece.rot, true);
+      }
+      return { ...level, tiles };
+    }
+
+    function randomPiece() {
+      const total = PIECE_BAG.reduce((sum, entry) => sum + entry.weight, 0);
+      let roll = Math.random() * total;
+      for (const entry of PIECE_BAG) {
+        roll -= entry.weight;
+        if (roll <= 0) return { type: entry.type, rot: randInt(4) };
+      }
+      return { type: "elbow", rot: randInt(4) };
+    }
+
+    function fillHand() {
+      hand = Array.from({ length: HAND_SIZE }, randomPiece);
+    }
+
+    // The tray never refreshes on its own. It deals three fresh pieces only
+    // after a piece has actually landed on the board.
+    function consumeSlot(slot) {
+      if (REFILL_WHOLE_HAND) fillHand();
+      else hand[slot] = randomPiece();
+    }
+
+    function renderHand() {
+      tray.innerHTML = "";
+      hand.forEach((piece, i) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "piece" + (i === selectedSlot ? " selected" : "");
+        button.dataset.slot = String(i);
+        button.setAttribute("aria-pressed", i === selectedSlot ? "true" : "false");
+        button.setAttribute("aria-label", `${piece.type} pipe, tray slot ${i + 1}. Drag it onto an empty cell, or select it and press space on the board.`);
+        const preview = document.createElement("canvas");
+        preview.width = 52;
+        preview.height = 52;
+        const pctx = preview.getContext("2d");
+        pctx.imageSmoothingEnabled = false;
+        pctx.fillStyle = COLORS.boardA;
+        pctx.fillRect(0, 0, 52, 52);
+        drawPipeBody(pctx, 0, 0, 52, piece, null, 0, 0);
+        button.appendChild(preview);
+        const label = document.createElement("span");
+        label.textContent = piece.type.toUpperCase();
+        button.appendChild(label);
+        tray.appendChild(button);
+      });
+    }
+
+    function selectSlot(slot) {
+      selectedSlot = slot === selectedSlot ? -1 : slot;
+      renderHand();
+      statusEl.textContent = selectedSlot < 0
+        ? "Piece put back in the tray."
+        : `${hand[selectedSlot].type.toUpperCase()} ready. Drop it on an empty cell.`;
+      draw();
+    }
+
+    function isPlaceable(x, y) {
+      return inBounds(x, y) && board.tiles[y][x].type === "empty";
+    }
+
+    function placePiece(slot, x, y) {
+      const piece = hand[slot];
+      if (animating || !piece || !isPlaceable(x, y)) return;
+      const tile = makeTile(piece.type, piece.rot, false);
+      tile.placed = true;
+      board.tiles[y][x] = tile;
+      placedCount++;
+      consumeSlot(slot);
+      selectedSlot = -1;
+      cursor = { x, y };
+      flow.clear();
+      leaks = [];
+      terminal.classList.remove("active");
+      renderHand();
+      draw();
+      updateAlt();
+      statusEl.textContent = `${placedCount} piece${placedCount === 1 ? "" : "s"} laid. Click one to rotate it; it stays where it landed.`;
+    }
+
+    function cellFromPoint(clientX, clientY) {
+      const tile = Number(canvas.dataset.tile || 64);
+      const rect = canvas.getBoundingClientRect();
+      if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+      const scale = canvas.width / rect.width;
+      const x = Math.floor(((clientX - rect.left) * scale - 42) / tile);
+      const y = Math.floor(((clientY - rect.top) * scale - 26) / tile);
+      return inBounds(x, y) ? { x, y } : null;
+    }
+
+    function startDrag(slot, clientX, clientY) {
+      dragState = { slot };
+      ghost = document.createElement("div");
+      ghost.className = "drag-ghost";
+      const preview = document.createElement("canvas");
+      preview.width = 64;
+      preview.height = 64;
+      const gctx = preview.getContext("2d");
+      gctx.imageSmoothingEnabled = false;
+      drawPipeBody(gctx, 0, 0, 64, hand[slot], null, 0, 0);
+      ghost.appendChild(preview);
+      document.body.appendChild(ghost);
+      moveGhost(clientX, clientY);
+    }
+
+    function moveGhost(clientX, clientY) {
+      if (!ghost) return;
+      ghost.style.left = `${clientX}px`;
+      ghost.style.top = `${clientY}px`;
+    }
+
+    function endDrag() {
+      dragState = null;
+      dragCell = null;
+      if (ghost) ghost.remove();
+      ghost = null;
+    }
+
+    function rotatedGroups(tile) {
+      // Pipe connectivity is represented as one or more independent groups of
+      // ports. Most pieces share a single chamber; culverts keep crossings apart.
+      return (TILE_BASE[tile.type] || []).map(group => group.map(d => (d + tile.rot) % 4));
+    }
+
+    function canPass(tile, incoming) {
+      return rotatedGroups(tile).filter(group => group.includes(incoming)).flat();
+    }
+
+    function hasPort(tile, dir) {
+      return rotatedGroups(tile).some(group => group.includes(dir));
+    }
+
+    // Placed pieces rotate in place and can never be lifted back off the board.
+    function rotateTile(x, y, delta) {
+      const tile = board.tiles[y]?.[x];
+      if (!tile || animating || tile.type === "empty") return;
+      if (tile.locked) {
+        statusEl.textContent = "That is existing infrastructure. It does not turn.";
+        return;
+      }
+      tile.rot = (tile.rot + delta + 4) % 4;
+      flow.clear();
+      leaks = [];
+      terminal.classList.remove("active");
+      draw();
+      updateAlt();
+    }
+
+    function releaseWater() {
+      if (animating) return;
+      const result = traceFlow();
+      if (!result.reached.length) {
+        flow = result.flow;
+        leaks = result.leaks;
+        waterFront = Infinity;
+        statusEl.textContent = "No outlet reached yet. Lay more pipe or rotate what you placed; nothing resets.";
+        draw();
+        return;
+      }
+      statusEl.textContent = "Water is moving.";
+      if (reduceMotion) {
+        flow = result.flow;
+        leaks = result.leaks;
+        waterFront = Infinity;
+        finishFlow(result);
+      } else {
+        animateFlow(result);
+      }
+    }
+
+    function traceFlow() {
+      const seen = new Set();
+      const filled = new Map();
+      const reached = [];
+      const leakList = [];
+      const queue = [{ x: board.source.x, y: board.source.y, inDir: 3, step: 0 }];
+      while (queue.length) {
+        const node = queue.shift();
+        if (!inBounds(node.x, node.y)) continue;
+        const key = `${node.x},${node.y},${node.inDir}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const tile = board.tiles[node.y][node.x];
+        const ports = canPass(tile, node.inDir);
+        if (!ports.includes(node.inDir)) {
+          leakList.push({ x: node.x, y: node.y, dir: node.inDir, step: node.step });
+          continue;
+        }
+        // Each filled cell remembers the step the water arrives on and which
+        // arms carry it in and out, so the animation can draw a moving front
+        // inside the pipe instead of switching whole tiles on.
+        const cellKey = `${node.x},${node.y}`;
+        let cell = filled.get(cellKey);
+        if (!cell) {
+          cell = { step: node.step, inDirs: [], outDirs: [] };
+          filled.set(cellKey, cell);
+        }
+        cell.step = Math.min(cell.step, node.step);
+        if (!cell.inDirs.includes(node.inDir)) cell.inDirs.push(node.inDir);
+        for (const outDir of ports) {
+          if (outDir === node.inDir) continue;
+          if (!cell.outDirs.includes(outDir)) cell.outDirs.push(outDir);
+          const outlet = board.outlets.find(o => o.x === node.x && o.y === node.y && o.dir === outDir);
+          if (outlet && !reached.some(r => r.outlet === outlet.outlet)) {
+            reached.push(outlet);
+          }
+          const nx = node.x + DIRS[outDir].dx;
+          const ny = node.y + DIRS[outDir].dy;
+          if (!inBounds(nx, ny)) {
+            if (!outlet) leakList.push({ x: node.x, y: node.y, dir: outDir, step: node.step + 1 });
+            continue;
+          }
+          const nextTile = board.tiles[ny][nx];
+          if (hasPort(nextTile, DIRS[outDir].opposite)) {
+            queue.push({ x: nx, y: ny, inDir: DIRS[outDir].opposite, step: node.step + 1 });
+          } else {
+            leakList.push({ x: node.x, y: node.y, dir: outDir, step: node.step + 1 });
+          }
+        }
+      }
+      return { flow: filled, leaks: leakList, reached };
+    }
+
+    function inBounds(x, y) {
+      return x >= 0 && y >= 0 && x < board.size && y < board.size;
+    }
+
+    // waterFront is measured in tiles travelled from the source. A cell whose
+    // arrival step is s starts filling when the front passes s and is full one
+    // tile later, so the water crawls arm by arm to the destination.
+    function animateFlow(result) {
+      animating = true;
+      animStart = performance.now();
+      const run = runId;
+      flow = result.flow;
+      const steps = [...result.flow.values()].map(cell => cell.step);
+      const maxStep = Math.max(...steps, 1);
+      // Hold a steady pace per tile rather than a fixed total, so a long route
+      // reads as a longer journey instead of a faster one.
+      const duration = Math.min(3200, Math.max(1100, (maxStep + 1) * 260));
+      // Every frame reads the wall clock rather than counting frames, and each
+      // one is scheduled twice: an animation frame for smoothness, and a timer
+      // as the safety net. A hidden, occluded or backgrounded tab gets no
+      // animation frames at all, and without the timer the run would stall
+      // forever with `animating` stuck true, which deadlocks release, placement
+      // and rotation. `token` makes whichever callback arrives first cancel the
+      // other, so the two schedules never compound.
+      let token = 0;
+      const tick = () => {
+        if (run !== runId) return;
+        const mine = ++token;
+        const t = Math.min(1, (performance.now() - animStart) / duration);
+        waterFront = t * (maxStep + 1);
+        leaks = result.leaks.filter(l => l.step <= waterFront + 0.5);
+        draw(t);
+        if (t >= 1) {
+          finishFlow(result);
+          return;
+        }
+        const next = () => { if (token === mine) tick(); };
+        requestAnimationFrame(next);
+        setTimeout(next, 150);
+      };
+      tick();
+    }
+
+    function finishFlow(result) {
+      animating = false;
+      flow = result.flow;
+      leaks = result.leaks;
+      waterFront = Infinity;
+      draw(1);
+      showPack(result.reached);
+    }
+
+    // How full a cell's pipe is: 0 before the water arrives, 1 once it has
+    // crossed the whole tile. Static states leave waterFront at Infinity.
+    function cellProgress(x, y) {
+      const cell = flow.get(`${x},${y}`);
+      if (!cell) return 0;
+      return Math.max(0, Math.min(1, waterFront - cell.step));
+    }
+
+    function showPack(reachedOutlets) {
+      const info = reachedOutlets.map(r => OUTLETS.find(o => o.id === r.outlet));
+      const tracks = [...new Set(info.map(o => o.track))];
+      const prompts = tracks.length === 1 ? pickPrompts(tracks[0], 2) : pickCrossTrack(tracks, 3);
+      lastPack = { outlets: info, tracks, prompts, created: new Date() };
+      history.push(lastPack);
+      reachedEl.textContent = `${info.map(o => `${o.label} / ${o.track}`).join("  |  ")}${tracks.length > 1 ? "  |  Cross-track pack unlocked" : ""}`;
+      promptGrid.innerHTML = prompts.map(promptCard).join("");
+      terminal.classList.add("active");
+      terminal.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      renderHistory();
+      statusEl.textContent = "Hack pack unlocked.";
+    }
+
+    // Starters are 90-minute on-ramps. One in a pack is a ladder; a pack made
+    // only of starters is a thin reward, so the rest are swapped for real work.
+    function limitStarters(picked, pool, max = 1) {
+      const out = [...picked];
+      let starters = 0;
+      for (let i = 0; i < out.length; i++) {
+        if (out[i]?.effort !== "starter") continue;
+        starters++;
+        if (starters <= max) continue;
+        const swap = pool.find(p => p.effort !== "starter" && !out.includes(p));
+        if (swap) out[i] = swap;
+      }
+      return out.filter(Boolean);
+    }
+
+    function pickPrompts(track, count) {
+      const all = PROMPTS.filter(p => p.track === track);
+      if (!all.length) return [];
+      const picked = all.slice((history.length * count) % all.length).concat(all).slice(0, count);
+      return limitStarters(picked, all);
+    }
+
+    function pickCrossTrack(tracks, count) {
+      const picked = [];
+      // A prompt that names a second track is the pack this outcome promises,
+      // so it leads if the player reached both of its tracks.
+      const bridges = PROMPTS.filter(p => Array.isArray(p.alsoTracks)
+        && tracks.includes(p.track) && p.alsoTracks.some(t => tracks.includes(t)));
+      if (bridges.length) picked.push(bridges[history.length % bridges.length]);
+      for (const track of tracks) {
+        if (picked.length >= count) break;
+        const options = PROMPTS.filter(p => p.track === track && !picked.includes(p));
+        if (options.length) picked.push(options[(history.length + picked.length) % options.length]);
+      }
+      for (const prompt of PROMPTS) {
+        if (picked.length >= count) break;
+        if (!picked.includes(prompt) && !tracks.includes(prompt.track)) picked.push(prompt);
+      }
+      return limitStarters(picked.slice(0, count), PROMPTS);
+    }
+
+    const EFFORT_LABEL = { starter: "START HERE", day: "A DAY", weekend: "ALL WEEKEND" };
+
+    // A card states a problem and who it lands on. Leads and ways in are
+    // offered, never required; the caution is the only hard limit.
+    function promptCard(p) {
+      const tracks = [p.track, ...(p.alsoTracks || [])].join(" + ");
+      const effort = EFFORT_LABEL[p.effort] || "";
+      const leads = (p.sources || []).join(" / ");
+      const ways = (p.formats || []).join(" / ");
+      return `<article class="prompt-card">
+        <h3>${escapeHtml(p.title)}</h3>
+        <div class="meta">TRACK: ${escapeHtml(tracks)}${effort ? ` &nbsp;|&nbsp; ${escapeHtml(effort)}` : ""}</div>
+        <p>${escapeHtml(p.problem)}</p>
+        ${p.whoFeelsIt ? `<p class="who"><strong>WHO FEELS IT</strong> ${escapeHtml(p.whoFeelsIt)}</p>` : ""}
+        ${leads ? `<div class="meta">LEADS, NOT REQUIREMENTS: ${escapeHtml(leads)}</div>` : ""}
+        ${ways ? `<div class="meta">SOME WAYS IN: ${escapeHtml(ways)}</div>` : ""}
+        ${p.needs && p.needs.length ? `<div class="meta">HELPS TO HAVE: ${escapeHtml(p.needs.join(" / "))}</div>` : ""}
+        <div class="caution">CAUTION: ${escapeHtml(p.caution)}</div>
+      </article>`;
+    }
+
+    function renderHistory() {
+      historyEl.innerHTML = history.map((pack, i) => `<div class="pack-chip">
+        PACK ${i + 1}: ${escapeHtml(pack.tracks.join(" + "))}<br>
+        ${escapeHtml(pack.prompts.map(p => p.title).join(" / "))}
+      </div>`).join("");
+    }
+
+    function packMarkdown() {
+      if (!lastPack) return "";
+      const lines = [
+        "# FLOW Hack Pack",
+        "",
+        `Unlocked tracks: ${lastPack.tracks.join(", ")}`,
+        `Reached outlets: ${lastPack.outlets.map(o => o.label).join(", ")}`,
+        "",
+        "You do not need to know how the city works before you arrive. Learning how one part of it works, and helping other people see it more clearly, is already a valid hack.",
+        ""
+      ];
+      for (const p of lastPack.prompts) {
+        lines.push(`## ${p.title}`, "", `Track: ${[p.track, ...(p.alsoTracks || [])].join(" + ")}`);
+        if (p.effort) lines.push(`Where to start: ${EFFORT_LABEL[p.effort] || p.effort}`);
+        lines.push("", p.problem, "");
+        if (p.whoFeelsIt) lines.push(`Who feels it: ${p.whoFeelsIt}`, "");
+        if (p.sources && p.sources.length) lines.push(`Leads, not requirements: ${p.sources.join(", ")}`);
+        if (p.formats && p.formats.length) lines.push(`Some ways in: ${p.formats.join(", ")}`);
+        if (p.needs && p.needs.length) lines.push(`Helps to have: ${p.needs.join(", ")}`);
+        lines.push(`Caution: ${p.caution}`, "");
+      }
+      lines.push("---", "Hack for RVA, March 27-29", "",
+        "These are problems, not assignments. Nothing here specifies what you should build; the form is yours to choose.", "", "What one row means: ask what each record represents, which geography and time period it covers, and which fields matter.", "", "What this data does not tell us: public and synthetic datasets need context, limitations, and people who can validate the story.");
+      return lines.join("\n");
+    }
+
+    async function copyPack() {
+      const text = packMarkdown();
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.textContent = "Pack copied.";
+      } catch {
+        toast.textContent = "Clipboard unavailable. Select the pack text or download it.";
+      }
+    }
+
+    function downloadPack() {
+      const blob = new Blob([packMarkdown()], { type: "text/markdown" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "flow-hack-pack.md";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast.textContent = "Markdown downloaded.";
+    }
+
+    // Gutters: 42px on the left for the source stub, and enough room right and
+    // below for the outlet icons plus their track labels.
+    const PAD_X = 130, PAD_Y = 104;
+
+    function resizeCanvas() {
+      // Pick the largest 16px-multiple tile whose board still fits its column,
+      // so the canvas is never scaled by a fraction.
+      const room = Math.min(canvas.parentElement.clientWidth || 680, window.innerWidth - 40, 720) - PAD_X;
+      const tile = Math.min(96, Math.max(48, Math.floor(room / board.size / 16) * 16));
+      canvas.width = tile * board.size + PAD_X;
+      canvas.height = tile * board.size + PAD_Y;
+      canvas.dataset.tile = tile;
+    }
+
+    function draw(time = 0) {
+      const tile = Number(canvas.dataset.tile || 64);
+      ctx.imageSmoothingEnabled = false;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#DFF8FB";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const ox = 42, oy = 26;
+      drawSource(ox - 28, oy + board.source.y * tile + tile / 2, time);
+      for (let y = 0; y < board.size; y++) {
+        for (let x = 0; x < board.size; x++) drawTile(x, y, ox, oy, tile, time);
+      }
+      drawOutlets(ox, oy, tile, time);
+      drawLeaks(ox, oy, tile, time);
+      drawCursor(ox, oy, tile);
+    }
+
+    function drawTile(x, y, ox, oy, tile, time) {
+      const px = ox + x * tile, py = oy + y * tile;
+      const t = board.tiles[y][x];
+      const water = flow.get(`${x},${y}`);
+      const progress = cellProgress(x, y);
+      const armed = selectedSlot >= 0 || dragState;
+      const hovered = dragCell && dragCell.x === x && dragCell.y === y;
+      ctx.fillStyle = (x + y) % 2 ? COLORS.boardA : COLORS.boardB;
+      ctx.fillRect(px, py, tile, tile);
+      ctx.strokeStyle = t.locked ? COLORS.lockedDark : COLORS.line;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + 0.5, py + 0.5, tile - 1, tile - 1);
+      if (t.type === "empty") {
+        // An empty cell is a slot waiting for a piece; mark it, and mark it
+        // harder while the player is holding one.
+        ctx.fillStyle = armed ? COLORS.amber : COLORS.line;
+        const c = tile / 2;
+        ctx.fillRect(px + c - 5, py + c - 1, 10, 2);
+        ctx.fillRect(px + c - 1, py + c - 5, 2, 10);
+        if (armed) {
+          ctx.strokeStyle = COLORS.amber;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(px + 3, py + 3, tile - 6, tile - 6);
+        }
+        // The drop target shows a translucent preview of the piece being held.
+        if (hovered && dragState) {
+          ctx.save();
+          ctx.globalAlpha = 0.6;
+          drawPipeBody(ctx, px, py, tile, hand[dragState.slot], null, 0, time);
+          ctx.restore();
+        }
+        return;
+      }
+      drawPipeBody(ctx, px, py, tile, t, progress > 0 ? water : null, progress, time);
+      if (t.locked) {
+        ctx.fillStyle = COLORS.lockedDark;
+        ctx.fillRect(px + tile - 11, py + 4, 6, 6);
+      }
+    }
+
+    // Shared pipe renderer: the board, the tray previews and the drag ghost all
+    // draw through this, so a piece looks identical wherever it appears.
+    function drawPipeBody(c2, px, py, size, tile, water, progress, time) {
+      const w = Math.max(8, Math.floor(size * 0.2));
+      const c = size / 2;
+      const inner = Math.max(4, w - 5);
+      // Locked pieces are cast in a different material so a player can see at a
+      // glance which pipes they will never be able to turn.
+      const casingColor = tile.locked ? COLORS.lockedDark : COLORS.pipeDark;
+      const pipeColor = tile.locked ? COLORS.locked : COLORS.pipe;
+      // The tile fills in two halves: the inbound arms take the front to the
+      // centre over the first half of the tile, the outbound arms carry it to
+      // the far edge over the second half.
+      const ww = Math.max(4, w - 6);
+      const shimmer = Math.floor(time * 2) % 2;
+      const body = progress >= 1 && shimmer ? COLORS.cyanHi : COLORS.cyan;
+      const inFrac = Math.min(1, progress / 0.5);
+      const outFrac = Math.max(0, (progress - 0.5) / 0.5);
+
+      // A culvert carries two paths that never meet, so each port group is
+      // drawn as its own layer with the second group laid down first. The last
+      // layer's casing then cuts across the one beneath it and the crossing
+      // reads as an overpass. Without this a culvert is pixel-identical to a
+      // cross, and a player routes water into it expecting a junction.
+      const groups = rotatedGroups(tile);
+      const layers = groups.length > 1 ? [groups[1], groups[0]] : groups;
+
+      for (const group of layers) {
+        for (const d of group) drawPipeArm(c2, px, py, c, size, w, d, casingColor);
+        c2.fillStyle = casingColor;
+        c2.fillRect(px + c - w / 2, py + c - w / 2, w, w);
+        for (const d of group) drawPipeArm(c2, px, py, c, size, inner, d, pipeColor);
+        c2.fillStyle = pipeColor;
+        c2.fillRect(px + c - inner / 2, py + c - inner / 2, inner, inner);
+
+        if (!water) continue;
+        const ins = group.filter(d => water.inDirs.includes(d));
+        const outs = group.filter(d => water.outDirs.includes(d));
+        if (!ins.length && !outs.length) continue;
+        for (const d of ins) drawWaterArm(c2, px, py, c, size, ww, d, body, inFrac, true);
+        if (progress >= 0.5) {
+          c2.fillStyle = body;
+          c2.fillRect(px + c - ww / 2, py + c - ww / 2, ww, ww);
+          for (const d of outs) drawWaterArm(c2, px, py, c, size, ww, d, body, outFrac, false);
+        }
+        if (progress >= 1) {
+          // The settled trailing pixel that gives the water its three-tone ramp.
+          c2.fillStyle = COLORS.cyanLow;
+          c2.fillRect(px + c - 2, py + c + 4, 4, 4);
+        }
+      }
+    }
+
+    // One arm of water, filled part way. `fromEdge` fills from the tile edge
+    // toward the centre (water arriving); otherwise it runs centre to edge
+    // (water leaving). The leading pixel gets the light crest colour.
+    function drawWaterArm(c2, px, py, c, size, w, d, color, frac, fromEdge) {
+      if (frac <= 0) return;
+      const len = (c + w / 2) * Math.min(1, frac);
+      // Only a front still travelling gets a crest; a full arm reads as a
+      // settled pipe instead of a speckled one.
+      const crest = frac < 1 ? Math.min(len, 4) : 0;
+      c2.fillStyle = color;
+      if (d === 0) {
+        const y = fromEdge ? py : py + c + w / 2 - len;
+        c2.fillRect(px + c - w / 2, y, w, len);
+        if (crest) {
+          c2.fillStyle = COLORS.cyanHi;
+          c2.fillRect(px + c - w / 2, fromEdge ? y + len - crest : y, w, crest);
+        }
+      }
+      if (d === 2) {
+        const y = fromEdge ? py + size - len : py + c - w / 2;
+        c2.fillRect(px + c - w / 2, y, w, len);
+        if (crest) {
+          c2.fillStyle = COLORS.cyanHi;
+          c2.fillRect(px + c - w / 2, fromEdge ? y : y + len - crest, w, crest);
+        }
+      }
+      if (d === 1) {
+        const x = fromEdge ? px + size - len : px + c - w / 2;
+        c2.fillRect(x, py + c - w / 2, len, w);
+        if (crest) {
+          c2.fillStyle = COLORS.cyanHi;
+          c2.fillRect(fromEdge ? x : x + len - crest, py + c - w / 2, crest, w);
+        }
+      }
+      if (d === 3) {
+        const x = fromEdge ? px : px + c + w / 2 - len;
+        c2.fillRect(x, py + c - w / 2, len, w);
+        if (crest) {
+          c2.fillStyle = COLORS.cyanHi;
+          c2.fillRect(fromEdge ? x + len - crest : x, py + c - w / 2, crest, w);
+        }
+      }
+    }
+
+    function drawPipeArm(c2, px, py, c, size, w, d, color) {
+      c2.fillStyle = color;
+      if (d === 0) c2.fillRect(px + c - w / 2, py, w, c + w / 2);
+      if (d === 1) c2.fillRect(px + c - w / 2, py + c - w / 2, c + w / 2, w);
+      if (d === 2) c2.fillRect(px + c - w / 2, py + c - w / 2, w, c + w / 2);
+      if (d === 3) c2.fillRect(px, py + c - w / 2, c + w / 2, w);
+    }
+
+    function drawSource(x, y, time) {
+      const pulse = Math.sin((performance.now() / 550) + time) * 2;
+      ctx.fillStyle = COLORS.cyanLow;
+      ctx.fillRect(x, y - 13 - pulse, 22, 26 + pulse * 2);
+      ctx.fillStyle = COLORS.cyan;
+      ctx.fillRect(x + 6, y - 8, 18, 16);
+      ctx.fillStyle = COLORS.cyanHi;
+      ctx.fillRect(x + 12, y - 4, 6, 4);
+    }
+
+    function drawOutlets(ox, oy, tile) {
+      for (const o of board.outlets) {
+        const meta = OUTLETS.find(item => item.id === o.outlet);
+        const x = ox + o.x * tile + tile / 2 + DIRS[o.dir].dx * (tile / 2 + 26);
+        const y = oy + o.y * tile + tile / 2 + DIRS[o.dir].dy * (tile / 2 + 26);
+        const reached = lastOutletReached(o);
+        drawOutletIcon(meta.icon, x - 14, y - 14, reached);
+        ctx.fillStyle = reached ? COLORS.green : COLORS.muted;
+        ctx.font = "10px ui-monospace, monospace";
+        ctx.textAlign = o.dir === 1 ? "left" : "center";
+        ctx.fillText(meta.short.toUpperCase(), o.dir === 1 ? x + 18 : x, o.dir === 1 ? y + 4 : y + 28);
+      }
+    }
+
+    function lastOutletReached(o) {
+      const tile = board.tiles[o.y][o.x];
+      return cellProgress(o.x, o.y) >= 1 && hasPort(tile, o.dir);
+    }
+
+    function drawOutletIcon(kind, x, y, reached) {
+      ctx.fillStyle = reached ? COLORS.green : COLORS.paper;
+      ctx.fillRect(x, y, 28, 28);
+      ctx.strokeStyle = COLORS.navy;
+      ctx.strokeRect(x + 0.5, y + 0.5, 27, 27);
+      ctx.fillStyle = reached ? COLORS.paper : COLORS.cyanLow;
+      if (kind === "river") { ctx.fillRect(x + 4, y + 9, 20, 4); ctx.fillRect(x + 2, y + 16, 18, 4); }
+      if (kind === "tap") { ctx.fillRect(x + 8, y + 6, 12, 4); ctx.fillRect(x + 16, y + 10, 4, 8); ctx.fillRect(x + 7, y + 20, 14, 3); }
+      if (kind === "plant") { ctx.fillRect(x + 5, y + 15, 6, 8); ctx.fillRect(x + 13, y + 10, 6, 13); ctx.fillRect(x + 21, y + 13, 3, 10); }
+      if (kind === "pump") { ctx.fillRect(x + 12, y + 5, 4, 18); ctx.fillRect(x + 5, y + 12, 18, 4); }
+      if (kind === "block") { ctx.fillRect(x + 4, y + 11, 6, 12); ctx.fillRect(x + 11, y + 8, 6, 15); ctx.fillRect(x + 18, y + 12, 6, 11); }
+    }
+
+    function drawLeaks(ox, oy, tile, time) {
+      ctx.fillStyle = COLORS.danger;
+      for (const l of leaks) {
+        const x = ox + l.x * tile + tile / 2 + DIRS[l.dir].dx * (tile / 2 - 3);
+        const y = oy + l.y * tile + tile / 2 + DIRS[l.dir].dy * (tile / 2 - 3);
+        ctx.fillRect(x - 3, y - 3, 6, 6);
+        ctx.fillStyle = COLORS.cyanHi;
+        ctx.fillRect(x + DIRS[l.dir].dx * 8, y + DIRS[l.dir].dy * 8, 4, 4);
+        ctx.fillStyle = COLORS.danger;
+      }
+    }
+
+    function drawCursor(ox, oy, tile) {
+      const x = ox + cursor.x * tile, y = oy + cursor.y * tile;
+      ctx.strokeStyle = COLORS.amber;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x + 4, y + 4, tile - 8, tile - 8);
+    }
+
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[c]);
+    }
+
+    function updateAlt() {
+      const held = selectedSlot >= 0 ? `Holding a ${hand[selectedSlot].type} piece. ` : "";
+      const here = board.tiles[cursor.y][cursor.x];
+      const cell = here.type === "empty" ? "an empty cell" : `a ${here.locked ? "locked" : "placed"} ${here.type} piece`;
+      canvas.setAttribute("aria-label", `${board.name}. Source at row ${board.source.y + 1}. ${placedCount} pieces placed. ${held}Cursor at column ${cursor.x + 1}, row ${cursor.y + 1}, on ${cell}. Tray offers ${hand.map(pc => pc.type).join(", ")}. Outlets are ${board.outlets.map(o => OUTLETS.find(item => item.id === o.outlet).label).join(", ")}.`);
+    }
+
+    function buildLegend() {
+      document.getElementById("legend").innerHTML = OUTLETS.map((o, i) => `<div class="legend-row">
+        <span class="sprite ${i % 2 ? "elbow" : ""}"></span>
+        <span><strong>${escapeHtml(o.short.toUpperCase())}</strong> ${escapeHtml(o.label)}<br><span style="color: var(--muted)">${escapeHtml(o.track)}</span></span>
+      </div>`).join("");
+    }
+
+    canvas.addEventListener("click", e => {
+      const cell = cellFromPoint(e.clientX, e.clientY);
+      if (!cell) return;
+      cursor = cell;
+      if (board.tiles[cell.y][cell.x].type === "empty") {
+        if (selectedSlot >= 0) placePiece(selectedSlot, cell.x, cell.y);
+        else statusEl.textContent = "Pick a piece from the tray first, then click a cell.";
+        draw();
+        updateAlt();
+        return;
+      }
+      rotateTile(cell.x, cell.y, e.shiftKey ? -1 : 1);
+    });
+
+    canvas.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      const cell = cellFromPoint(e.clientX, e.clientY);
+      if (!cell) return;
+      cursor = cell;
+      rotateTile(cell.x, cell.y, -1);
+    });
+
+    // Dragging a piece out of the tray. Pointer events cover mouse and touch;
+    // a press without a drag just arms the piece for click-to-place.
+    tray.addEventListener("pointerdown", e => {
+      const button = e.target.closest(".piece");
+      if (!button || animating) return;
+      const slot = Number(button.dataset.slot);
+      selectedSlot = slot;
+      renderHand();
+      startDrag(slot, e.clientX, e.clientY);
+      draw();
+      e.preventDefault();
+    });
+
+    window.addEventListener("pointermove", e => {
+      if (!dragState) return;
+      moveGhost(e.clientX, e.clientY);
+      const cell = cellFromPoint(e.clientX, e.clientY);
+      const next = cell && isPlaceable(cell.x, cell.y) ? cell : null;
+      const changed = (next ? `${next.x},${next.y}` : "") !== (dragCell ? `${dragCell.x},${dragCell.y}` : "");
+      if (changed) {
+        dragCell = next;
+        draw();
+      }
+      e.preventDefault();
+    });
+
+    window.addEventListener("pointerup", e => {
+      if (!dragState) return;
+      const slot = dragState.slot;
+      const cell = cellFromPoint(e.clientX, e.clientY);
+      endDrag();
+      if (cell && isPlaceable(cell.x, cell.y)) placePiece(slot, cell.x, cell.y);
+      else draw();
+    });
+
+    window.addEventListener("pointercancel", () => {
+      if (!dragState) return;
+      endDrag();
+      draw();
+    });
+
+    canvas.addEventListener("keydown", e => {
+      const slotKey = Number(e.key);
+      if (e.key === "ArrowLeft") cursor.x = Math.max(0, cursor.x - 1);
+      else if (e.key === "ArrowRight") cursor.x = Math.min(board.size - 1, cursor.x + 1);
+      else if (e.key === "ArrowUp") cursor.y = Math.max(0, cursor.y - 1);
+      else if (e.key === "ArrowDown") cursor.y = Math.min(board.size - 1, cursor.y + 1);
+      else if (slotKey >= 1 && slotKey <= HAND_SIZE) selectSlot(slotKey - 1);
+      else if (e.key === " ") {
+        if (board.tiles[cursor.y][cursor.x].type === "empty") {
+          if (selectedSlot >= 0) placePiece(selectedSlot, cursor.x, cursor.y);
+          else statusEl.textContent = `Press 1 to ${HAND_SIZE} to pick a piece, then space to place it.`;
+        } else {
+          rotateTile(cursor.x, cursor.y, e.shiftKey ? -1 : 1);
+        }
+      }
+      else if (e.key === "Enter") releaseWater();
+      else return;
+      e.preventDefault();
+      draw();
+      updateAlt();
+    });
+
+    document.getElementById("release").addEventListener("click", releaseWater);
+    document.getElementById("copyPack").addEventListener("click", copyPack);
+    document.getElementById("downloadPack").addEventListener("click", downloadPack);
+    document.getElementById("again").addEventListener("click", () => { loadLevel(levelIndex + 1); canvas.focus(); });
+    document.getElementById("next").addEventListener("click", () => { loadLevel(levelIndex + 1); canvas.focus(); });
+    document.getElementById("prev").addEventListener("click", () => { loadLevel(levelIndex - 1); canvas.focus(); });
+    window.addEventListener("resize", () => { resizeCanvas(); draw(); });
+
+    buildLegend();
+    loadRewards();
+    loadLevel(0);
+  </script>
+</body>
+</html>
