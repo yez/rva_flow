@@ -620,6 +620,22 @@
       margin-top: 12px;
     }
 
+    /* Floats over the river so it stays reachable when the game is hidden. */
+    .view-toggle {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 2;
+      background: #F8FEFF;
+      color: var(--navy);
+      border: 3px solid var(--navy);
+      box-shadow: 6px 6px 0 rgba(22, 68, 102, 0.20);
+      font-weight: 800;
+    }
+
+    /* .shell sets display: grid, which would otherwise beat [hidden]. */
+    .shell[hidden] { display: none; }
+
     .toast {
       min-height: 18px;
       color: var(--green);
@@ -697,6 +713,7 @@
       <svg class="kelp" style="--x: 91%; --speed: 3.4s" width="48" height="138" viewBox="0 0 16 46"><use href="#s-water-celery-637f"/></svg>
     </div>
   </div>
+  <button id="viewToggle" class="view-toggle" aria-pressed="false">Watch River</button>
   <main class="shell">
     <header>
       <div>
@@ -3260,6 +3277,17 @@
     document.getElementById("next").addEventListener("click", () => { loadLevel(levelIndex + 1); canvas.focus(); });
     document.getElementById("prev").addEventListener("click", () => { loadLevel(levelIndex - 1); canvas.focus(); });
     window.addEventListener("resize", () => { resizeCanvas(); draw(); });
+
+    const shell = document.querySelector(".shell");
+    const viewToggle = document.getElementById("viewToggle");
+    viewToggle.addEventListener("click", () => {
+      const watching = !shell.hidden;
+      shell.hidden = watching;
+      viewToggle.textContent = watching ? "Play Game" : "Watch River";
+      viewToggle.setAttribute("aria-pressed", String(watching));
+      // The board measured nothing while hidden; size it to its column again.
+      if (!watching) { resizeCanvas(); draw(); }
+    });
 
     buildLegend();
     loadRewards();
